@@ -45,9 +45,7 @@ class _MasroufiAppState extends State<MasroufiApp> {
 
   void toggleTheme() {
     setState(() {
-      _themeMode = _themeMode == ThemeMode.dark
-          ? ThemeMode.light
-          : ThemeMode.dark;
+      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     });
   }
 
@@ -67,23 +65,15 @@ class _MasroufiAppState extends State<MasroufiApp> {
           case '/onboarding':
             return MaterialPageRoute(builder: (_) => const OnboardingScreen());
           case '/role-selection':
-            return MaterialPageRoute(
-              builder: (_) => const RoleSelectionScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const RoleSelectionScreen());
           case '/login':
             return MaterialPageRoute(builder: (_) => const LoginScreen());
           case '/register-job-seeker':
-            return MaterialPageRoute(
-              builder: (_) => const RegisterJobSeekerScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const RegisterJobSeekerScreen());
           case '/register-recruiter':
-            return MaterialPageRoute(
-              builder: (_) => const RegisterRecruiterScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const RegisterRecruiterScreen());
           case '/job-seeker-home':
-            return MaterialPageRoute(
-              builder: (_) => const JobSeekerHomeScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const JobSeekerHomeScreen());
           case '/job-details':
             final args = settings.arguments as Map<String, dynamic>?;
             final isRecruiter = args?['isRecruiter'] ?? false;
@@ -95,25 +85,17 @@ class _MasroufiAppState extends State<MasroufiApp> {
           case '/chat':
             return MaterialPageRoute(builder: (_) => const ChatScreen());
           case '/recruiter-home':
-            return MaterialPageRoute(
-              builder: (_) => const RecruiterHomeScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const RecruiterHomeScreen());
           case '/create-job':
             return MaterialPageRoute(builder: (_) => const CreateJobScreen());
           case '/edit-job':
             return MaterialPageRoute(builder: (_) => const EditJobScreen());
           case '/admin-dashboard':
-            return MaterialPageRoute(
-              builder: (_) => const AdminDashboardScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const AdminDashboardScreen());
           case '/edit-recruiter-profile':
-            return MaterialPageRoute(
-              builder: (_) => const EditRecruiterProfileScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const EditRecruiterProfileScreen());
           case '/edit-job-seeker-profile':
-            return MaterialPageRoute(
-              builder: (_) => const EditJobSeekerProfileScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const EditJobSeekerProfileScreen());
           default:
             return MaterialPageRoute(
               builder: (_) => Scaffold(
