@@ -1,12 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_alinfo9/core/app_theme.dart';
+import 'package:flutter_alinfo9/views/jobs/data/models/category.dart';
+import 'package:flutter_alinfo9/views/jobs/data/models/job.dart';
+import 'package:flutter_alinfo9/views/jobs/data/models/job_request.dart';
+import 'package:flutter_alinfo9/views/jobs/data/repositories/job_repository.dart';
+import 'package:flutter_alinfo9/views/recruiter/logic/create_job_cubit.dart';
+import 'package:flutter_alinfo9/views/recruiter/logic/create_job_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/widgets/custom_button.dart';
-import '../../../../core/widgets/custom_text_field.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/custom_text_field.dart';
 
 class EditJobScreen extends StatefulWidget {
-  const EditJobScreen({Key? key}) : super(key: key);
+  final int? jobId;
+  const EditJobScreen({Key? key, this.jobId}) : super(key: key);
 
   @override
   State<EditJobScreen> createState() => _EditJobScreenState();
@@ -16,11 +24,16 @@ class _EditJobScreenState extends State<EditJobScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _requirementsController = TextEditingController();
   final _salaryController = TextEditingController();
   final _durationController = TextEditingController();
   final _locationController = TextEditingController();
   bool _requiresQuiz = false;
   File? _jobImage;
+  int? _selectedCategoryId;
+  List<Category> _categories = [];
+  Job? _currentJob;
+  bool _isLoading = true;
 
   // Skills selection
   final List<String> _availableSkills = [
@@ -33,22 +46,76 @@ class _EditJobScreenState extends State<EditJobScreen> {
     'Python',
     'Java',
   ];
-  final List<String> _selectedSkills = ['Flutter', 'UI/UX'];
+  final List<String> _selectedSkills = [];
 
   @override
   void initState() {
     super.initState();
-    // In a real application, you would fetch the job data here.
-    _titleController.text = 'Web Developer';
-    _descriptionController.text = 'We are looking for a skilled web developer to join our team.';
-    _salaryController.text = '50';
-    _durationController.text = '2 days';
-    _locationController.text = 'Tunis, Tunisia';
+    _loadJobData();
+    _fetchCategories();
+  }
+
+  Future<void> _fetchCategories() async {
+    try {
+      final categoriesResponse = await JobRepository().getCategories();
+      setState(() {
+        _categories = categoriesResponse.content;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load categories: $e'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadJobData() async {
+    if (widget.jobId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Job ID is missing'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+      Navigator.pop(context);
+      return;
+    }
+
+    try {
+      final job = await JobRepository().getJobById(widget.jobId!);
+      setState(() {
+        _currentJob = job;
+        _titleController.text = job.title;
+        _descriptionController.text = job.description;
+        _requirementsController.text = job.requirements ?? '';
+        _salaryController.text = job.salary?.toString() ?? '';
+        _durationController.text = job.duration ?? '';
+        _locationController.text = job.location ?? '';
+        _requiresQuiz = job.requiresQuiz;
+        _selectedCategoryId = job.category.id;
+        if (job.skills != null) {
+          _selectedSkills.addAll(job.skills!);
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load job: $e'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+      Navigator.pop(context);
+    }
   }
 
   Future<void> _pickImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
     if (pickedFile != null) {
       setState(() {
         _jobImage = File(pickedFile.path);
@@ -56,11 +123,87 @@ class _EditJobScreenState extends State<EditJobScreen> {
     }
   }
 
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      if (_selectedCategoryId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a category.'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+        return;
+      }
+
+      final jobRequest = JobRequest(
+        title: _titleController.text,
+        description: _descriptionController.text,
+        requirements: _requirementsController.text.isEmpty
+            ? null
+            : _requirementsController.text,
+        salary: double.tryParse(_salaryController.text),
+        duration: _durationController.text.isEmpty
+            ? null
+            : _durationController.text,
+        location: _locationController.text.isEmpty
+            ? null
+            : _locationController.text,
+        categoryId: _selectedCategoryId!,
+        requiresQuiz: _requiresQuiz,
+        skills: _selectedSkills,
+        imageUrl: _currentJob?.imageUrl, // Keep existing image URL
+      );
+
+      context.read<CreateJobCubit>().updateJob(
+        widget.jobId!,
+        jobRequest,
+        imageFile: _jobImage,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit Job')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Job')),
-      body: SingleChildScrollView(
+      body: BlocConsumer<CreateJobCubit, CreateJobState>(
+        listener: (context, state) {
+          if (state is CreateJobSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Job updated successfully!'),
+                backgroundColor: AppTheme.successGreen,
+              ),
+            );
+            Navigator.pop(context, true); // Return true to indicate success
+          } else if (state is CreateJobFailure) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Error'),
+                content: Text(state.error),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          final isLoading = state is CreateJobLoading;
+          return Stack(
+            children: [
+              SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -92,6 +235,15 @@ class _EditJobScreenState extends State<EditJobScreen> {
                 },
               ),
               const SizedBox(height: 20),
+              CustomTextField(
+                label: 'Requirements (Optional)',
+                hint: 'e.g., 2+ years experience',
+                controller: _requirementsController,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 20),
+              _buildCategoryDropdown(),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
@@ -100,12 +252,6 @@ class _EditJobScreenState extends State<EditJobScreen> {
                       hint: '50',
                       controller: _salaryController,
                       keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Enter salary';
-                        }
-                        return null;
-                      },
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -114,12 +260,6 @@ class _EditJobScreenState extends State<EditJobScreen> {
                       label: 'Duration',
                       hint: '2 days',
                       controller: _durationController,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Enter duration';
-                        }
-                        return null;
-                      },
                     ),
                   ),
                 ],
@@ -131,10 +271,9 @@ class _EditJobScreenState extends State<EditJobScreen> {
                 controller: _locationController,
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Job Image',
                 style: TextStyle(
-                  color: AppTheme.textWhite,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -146,39 +285,36 @@ class _EditJobScreenState extends State<EditJobScreen> {
                   height: 150,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBlack,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.tertiaryGrey,
+                      color: Theme.of(context).dividerColor,
                       width: 2,
                     ),
                   ),
                   child: _jobImage != null
-                      ? Image.file(_jobImage!, fit: BoxFit.cover)
-                      : const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.add_a_photo_outlined,
-                              color: AppTheme.textGrey,
-                              size: 40,
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Upload a picture of the job',
-                              style: TextStyle(
-                                color: AppTheme.textGrey,
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(_jobImage!, fit: BoxFit.cover),
+                        )
+                      : _currentJob?.imageUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                _currentJob!.imageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildImagePlaceholder();
+                                },
                               ),
-                            ),
-                          ],
-                        ),
+                            )
+                          : _buildImagePlaceholder(),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Required Skills',
                 style: TextStyle(
-                  color: AppTheme.textWhite,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -207,7 +343,7 @@ class _EditJobScreenState extends State<EditJobScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryBlack,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -216,19 +352,17 @@ class _EditJobScreenState extends State<EditJobScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Require Quiz',
                             style: TextStyle(
-                              color: AppTheme.textWhite,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Applicants must pass a quiz to apply',
                             style: TextStyle(
-                              color: AppTheme.textGrey,
                               fontSize: 12,
                             ),
                           ),
@@ -247,22 +381,65 @@ class _EditJobScreenState extends State<EditJobScreen> {
               const SizedBox(height: 32),
               CustomButton(
                 text: 'Update Job',
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    // Handle job update
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Job updated successfully!'),
-                        backgroundColor: AppTheme.accentGreen,
-                      ),
-                    );
-                    Navigator.pop(context);
-                  }
-                },
+                onPressed: _submitForm,
               ),
               const SizedBox(height: 20),
             ],
           ),
+        ),
+              ),
+              if (isLoading)
+                Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.add_a_photo_outlined,
+          size: 40,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _currentJob?.imageUrl != null
+              ? 'Tap to change image'
+              : 'Upload a picture of the job',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryDropdown() {
+    return DropdownButtonFormField<int>(
+      value: _selectedCategoryId,
+      hint: const Text('Select Category'),
+      onChanged: (int? newValue) {
+        setState(() {
+          _selectedCategoryId = newValue;
+        });
+      },
+      items: _categories.map<DropdownMenuItem<int>>((Category category) {
+        return DropdownMenuItem<int>(
+          value: category.id,
+          child: Text(category.name),
+        );
+      }).toList(),
+      validator: (value) => value == null ? 'Please select a category' : null,
+      decoration: InputDecoration(
+        labelText: 'Category',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
@@ -272,6 +449,7 @@ class _EditJobScreenState extends State<EditJobScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _requirementsController.dispose();
     _salaryController.dispose();
     _durationController.dispose();
     _locationController.dispose();
@@ -292,16 +470,16 @@ class _SkillChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? AppTheme.accentBlue.withOpacity(0.2)
-            : AppTheme.tertiaryGrey,
+            : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: selected ? AppTheme.accentBlue : AppTheme.tertiaryGrey,
+          color: selected ? AppTheme.accentBlue : Theme.of(context).dividerColor,
         ),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: selected ? AppTheme.accentBlue : AppTheme.textGrey,
+          color: selected ? AppTheme.accentBlue : null,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),

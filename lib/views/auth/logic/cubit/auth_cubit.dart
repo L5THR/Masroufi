@@ -1,27 +1,33 @@
-import 'package:flutter_alinfo9/views/auth/data/repositories/auth_repository.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/hive_storage.dart';
+import '../../data/models/login_response.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/user_repository.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _repository;
+  final UserRepository _userRepository;
 
-  AuthCubit(this._repository) : super(AuthInitial());
+  AuthCubit(this._repository, {UserRepository? userRepository})
+      : _userRepository = userRepository ?? UserRepository(),
+        super(AuthInitial());
 
-  // Login
+  // ==================== LOGIN ====================
   Future<void> login({required String email, required String password}) async {
     emit(AuthLoading());
     try {
-      final response = await _repository.login(
-        email: email,
-        password: password,
-      );
-      emit(AuthLoginSuccess(response));
+      final response = await _repository.login(email: email, password: password);
+      await _handleAuthSuccess(response, email);
     } catch (e) {
+      debugPrint('Login error: $e');
       emit(AuthError(e.toString()));
     }
   }
 
-  // Register Job Seeker
+  // ==================== REGISTER JOB SEEKER ====================
   Future<void> registerJobSeeker({
     required String email,
     required String password,
@@ -38,13 +44,16 @@ class AuthCubit extends Cubit<AuthState> {
         lastName: lastName,
         phoneNumber: phoneNumber,
       );
-      emit(AuthRegisterSuccess(response));
+
+      // Registration returns auth tokens directly - no need for separate login
+      await _handleAuthSuccess(response, email);
     } catch (e) {
+      debugPrint('Registration error: $e');
       emit(AuthError(e.toString()));
     }
   }
 
-  // Register Recruiter
+  // ==================== REGISTER RECRUITER ====================
   Future<void> registerRecruiter({
     required String email,
     required String password,
@@ -59,12 +68,126 @@ class AuthCubit extends Cubit<AuthState> {
         companyName: companyName,
         website: website,
       );
-      emit(AuthRegisterSuccess(response));
+
+      // Registration returns auth tokens directly - no need for separate login
+      await _handleAuthSuccess(response, email);
     } catch (e) {
+      debugPrint('Registration error: $e');
       emit(AuthError(e.toString()));
     }
   }
 
+  // ==================== SHARED AUTH SUCCESS HANDLER ====================
+  Future<void> _handleAuthSuccess(LoginResponse response, String email) async {
+    if (response.status.toUpperCase() == 'BLOCKED') {
+      emit(const AuthError('Your account has been blocked. Please contact support.'));
+      return;
+    }
+
+    await HiveStorage.saveToken(response.accessToken);
+    await HiveStorage.saveRefreshToken(response.refreshToken);
+    await HiveStorage.saveUserData({
+      'role': response.role,
+      'status': response.status,
+      'email': email,
+    });
+
+    DioClient.instance.setAuthToken(response.accessToken);
+    debugPrint('✅ Auth successful - Role: ${response.role}');
+    debugPrint('✅ Token saved: ${response.accessToken.substring(0, 20)}...');
+
+    emit(AuthLoginSuccess(response));
+  }
+
+  // ==================== LOGOUT ====================
+  Future<void> logout() async {
+    try {
+      // Clear all local data
+      await HiveStorage.clearAll();
+
+      // Remove token from Dio
+      DioClient.instance.removeAuthToken();
+
+      debugPrint('✅ Logout successful - All data cleared');
+
+      emit(AuthInitial());
+    } catch (e) {
+      debugPrint('❌ Logout error: $e');
+      emit(AuthError('Failed to logout. Please try again.'));
+    }
+  }
+
+  // ==================== CHECK AUTH STATUS ====================
+  /// Check if user is already logged in (useful for splash screen)
+  /// Validates token by calling GET /api/users/me
+  Future<void> checkAuthStatus() async {
+    try {
+      final token = await HiveStorage.getToken();
+      final refreshToken = await HiveStorage.getRefreshToken();
+
+      if (token == null || token.isEmpty) {
+        debugPrint('No token found');
+        emit(AuthInitial());
+        return;
+      }
+
+      // Set token in Dio before making API call
+      DioClient.instance.setAuthToken(token);
+
+      // Validate token by fetching user profile
+      final meResponse = await _userRepository.getMe();
+
+      // Check if user is blocked
+      if (meResponse.isBlocked) {
+        debugPrint('User account is blocked');
+        await HiveStorage.clearAll();
+        DioClient.instance.removeAuthToken();
+        emit(const AuthError('Your account has been blocked. Please contact support.'));
+        return;
+      }
+
+      // Update local storage with fresh data
+      await HiveStorage.saveUserData({
+        'role': meResponse.role,
+        'status': meResponse.status,
+        'email': meResponse.email,
+      });
+
+      debugPrint('Token validated - Role: ${meResponse.role}');
+
+      final loginResponse = LoginResponse(
+        accessToken: token,
+        refreshToken: refreshToken ?? '',
+        tokenType: 'bearer',
+        role: meResponse.role,
+        status: meResponse.status,
+      );
+
+      emit(AuthLoginSuccess(loginResponse));
+    } catch (e) {
+      debugPrint('Token validation failed: $e');
+      // Token is invalid or expired - clear storage and redirect to login
+      await HiveStorage.clearAll();
+      DioClient.instance.removeAuthToken();
+      emit(AuthInitial());
+    }
+  }
+
+  // ==================== GET REDIRECT ROUTE ====================
+  String getRedirectRoute(String? role) {
+    switch (role?.toUpperCase()) {
+      case 'JOB_SEEKER':
+        return '/job-seeker-home';
+      case 'RECRUITER':
+        return '/recruiter-home';
+      case 'ADMIN':
+        return '/admin-dashboard';
+      default:
+        return '/login';
+    }
+  }
+
+  // ==================== RESET STATE ====================
   void reset() {
     emit(AuthInitial());
   }

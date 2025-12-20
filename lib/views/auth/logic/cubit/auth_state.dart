@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter_alinfo9/views/auth/data/models/login_response.dart';
-import 'package:flutter_alinfo9/views/auth/data/models/register_response.dart';
+import '../../../auth/data/models/login_response.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -17,15 +16,6 @@ class AuthLoginSuccess extends AuthState {
   final LoginResponse response;
 
   const AuthLoginSuccess(this.response);
-
-  @override
-  List<Object?> get props => [response];
-}
-
-class AuthRegisterSuccess extends AuthState {
-  final RegisterResponse response;
-
-  const AuthRegisterSuccess(this.response);
 
   @override
   List<Object?> get props => [response];

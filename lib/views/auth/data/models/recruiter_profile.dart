@@ -1,21 +1,21 @@
 class RecruiterProfile {
   final int id;
   final String companyName;
-  final String? companyLogo;
+  final String? companyLogoUrl;
   final String? website;
 
   RecruiterProfile({
     required this.id,
     required this.companyName,
-    this.companyLogo,
+    this.companyLogoUrl,
     this.website,
   });
 
   factory RecruiterProfile.fromJson(Map<String, dynamic> json) {
     return RecruiterProfile(
-      id: json['id'] ?? 0,
+      id: int.tryParse(json['id'].toString()) ?? 0,
       companyName: json['companyName'] ?? '',
-      companyLogo: json['companyLogo'],
+      companyLogoUrl: json['companyLogoUrl'],
       website: json['website'],
     );
   }
@@ -24,7 +24,7 @@ class RecruiterProfile {
     return {
       'id': id,
       'companyName': companyName,
-      'companyLogo': companyLogo,
+      'companyLogoUrl': companyLogoUrl,
       'website': website,
     };
   }

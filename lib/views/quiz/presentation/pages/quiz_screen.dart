@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_alinfo9/core/app_theme.dart';
 import 'dart:async';
-import '../../../../core/widgets/custom_button.dart';
+import '../../../widgets/custom_button.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({Key? key}) : super(key: key);
@@ -104,10 +104,14 @@ class _QuizScreenState extends State<QuizScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+        backgroundColor: isDark
+            ? AppTheme.secondaryBlack
+            : AppTheme.secondaryWhite,
         title: Text(
           passed ? '🎉 Congratulations!' : '📝 Quiz Completed',
-          style: TextStyle(color: isDark ? AppTheme.textWhite : AppTheme.textBlack),
+          style: TextStyle(
+            color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -123,14 +127,18 @@ class _QuizScreenState extends State<QuizScreen> {
             const SizedBox(height: 8),
             Text(
               'Correct Answers: $correctAnswers/${_questions.length}',
-              style: TextStyle(color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey),
+              style: TextStyle(
+                color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
               passed
                   ? 'You passed! Your application has been submitted.'
                   : 'You need 70% to pass. Please try again later.',
-              style: TextStyle(color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey),
+              style: TextStyle(
+                color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -164,14 +172,20 @@ class _QuizScreenState extends State<QuizScreen> {
         final shouldPop = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+            backgroundColor: isDark
+                ? AppTheme.secondaryBlack
+                : AppTheme.secondaryWhite,
             title: Text(
               'Exit Quiz?',
-              style: TextStyle(color: isDark ? AppTheme.textWhite : AppTheme.textBlack),
+              style: TextStyle(
+                color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+              ),
             ),
             content: Text(
               'Your progress will be lost. Are you sure you want to exit?',
-              style: TextStyle(color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey),
+              style: TextStyle(
+                color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+              ),
             ),
             actions: [
               TextButton(
@@ -227,7 +241,9 @@ class _QuizScreenState extends State<QuizScreen> {
                       Text(
                         'Question ${_currentQuestion + 1}/${_questions.length}',
                         style: TextStyle(
-                          color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                          color: isDark
+                              ? AppTheme.textWhite
+                              : AppTheme.textBlack,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -245,7 +261,9 @@ class _QuizScreenState extends State<QuizScreen> {
                   const SizedBox(height: 12),
                   LinearProgressIndicator(
                     value: (_currentQuestion + 1) / _questions.length,
-                    backgroundColor: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
+                    backgroundColor: isDark
+                        ? AppTheme.tertiaryGrey
+                        : AppTheme.lightGrey,
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppTheme.accentBlue,
                     ),
@@ -289,8 +307,14 @@ class _QuizScreenState extends State<QuizScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
-                border: Border(top: BorderSide(color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey)),
+                color: isDark
+                    ? AppTheme.secondaryBlack
+                    : AppTheme.secondaryWhite,
+                border: Border(
+                  top: BorderSide(
+                    color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
+                  ),
+                ),
               ),
               child: SafeArea(
                 child: Row(
@@ -382,7 +406,9 @@ class _AnswerOption extends StatelessWidget {
               : (isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppTheme.accentBlue : (isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey),
+            color: isSelected
+                ? AppTheme.accentBlue
+                : (isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey),
             width: 2,
           ),
         ),
@@ -395,7 +421,9 @@ class _AnswerOption extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: isSelected ? AppTheme.accentBlue : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? AppTheme.accentBlue : (isDark ? AppTheme.textGrey : AppTheme.textDarkGrey),
+                  color: isSelected
+                      ? AppTheme.accentBlue
+                      : (isDark ? AppTheme.textGrey : AppTheme.textDarkGrey),
                   width: 2,
                 ),
               ),
@@ -408,7 +436,9 @@ class _AnswerOption extends StatelessWidget {
               child: Text(
                 text,
                 style: TextStyle(
-                  color: isSelected ? (isDark ? AppTheme.textWhite : AppTheme.textBlack) : (isDark ? AppTheme.textGrey : AppTheme.textDarkGrey),
+                  color: isSelected
+                      ? (isDark ? AppTheme.textWhite : AppTheme.textBlack)
+                      : (isDark ? AppTheme.textGrey : AppTheme.textDarkGrey),
                   fontSize: 16,
                 ),
               ),

@@ -4,8 +4,8 @@ import 'package:flutter_alinfo9/views/auth/logic/cubit/auth_cubit.dart';
 import 'package:flutter_alinfo9/views/auth/logic/cubit/auth_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
-import '../../../../core/widgets/custom_text_field.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/custom_text_field.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class RegisterRecruiterScreen extends StatelessWidget {
@@ -79,15 +79,10 @@ class _RegisterRecruiterViewState extends State<RegisterRecruiterView> {
       appBar: AppBar(title: const Text('Create Account')),
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
-          if (state is AuthRegisterSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Registration successful! Please login.'),
-                backgroundColor: AppTheme.accentGreen,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            Navigator.of(context).pushReplacementNamed('/login');
+          if (state is AuthLoginSuccess) {
+            // Registration succeeded and auto-login completed
+            final route = context.read<AuthCubit>().getRedirectRoute(state.response.role);
+            Navigator.of(context).pushReplacementNamed(route);
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

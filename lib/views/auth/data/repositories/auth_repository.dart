@@ -2,12 +2,10 @@ import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/endpoints.dart';
 import '../models/login_response.dart';
-import '../models/register_response.dart';
 
 class AuthRepository {
   final Dio _dio = DioClient.instance.dio;
 
-  // Login
   Future<LoginResponse> login({
     required String email,
     required String password,
@@ -23,8 +21,8 @@ class AuthRepository {
     }
   }
 
-  // Register Job Seeker
-  Future<RegisterResponse> registerJobSeeker({
+  /// Register returns AuthResponse (same as login) per API spec
+  Future<LoginResponse> registerJobSeeker({
     required String email,
     required String password,
     required String firstName,
@@ -42,14 +40,14 @@ class AuthRepository {
           if (phoneNumber != null) 'phoneNumber': phoneNumber,
         },
       );
-      return RegisterResponse.fromJson(response.data);
+      return LoginResponse.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  // Register Recruiter
-  Future<RegisterResponse> registerRecruiter({
+  /// Register returns AuthResponse (same as login) per API spec
+  Future<LoginResponse> registerRecruiter({
     required String email,
     required String password,
     required String companyName,
@@ -65,7 +63,7 @@ class AuthRepository {
           if (website != null) 'website': website,
         },
       );
-      return RegisterResponse.fromJson(response.data);
+      return LoginResponse.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleError(e);
     }

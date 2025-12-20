@@ -3,16 +3,16 @@ class JobSeekerProfile {
   final String firstName;
   final String lastName;
   final String? phoneNumber;
-  final String? cv;
-  final String? profilePicture;
+  final String? cvUrl;
+  final String? profilePictureUrl;
 
   JobSeekerProfile({
     required this.id,
     required this.firstName,
     required this.lastName,
     this.phoneNumber,
-    this.cv,
-    this.profilePicture,
+    this.cvUrl,
+    this.profilePictureUrl,
   });
 
   factory JobSeekerProfile.fromJson(Map<String, dynamic> json) {
@@ -21,8 +21,8 @@ class JobSeekerProfile {
       firstName: json['firstName'] ?? '',
       lastName: json['lastName'] ?? '',
       phoneNumber: json['phoneNumber'],
-      cv: json['cv'],
-      profilePicture: json['profilePicture'],
+      cvUrl: json['cvUrl'],
+      profilePictureUrl: json['profilePictureUrl'],
     );
   }
 
@@ -32,8 +32,10 @@ class JobSeekerProfile {
       'firstName': firstName,
       'lastName': lastName,
       'phoneNumber': phoneNumber,
-      'cv': cv,
-      'profilePicture': profilePicture,
+      'cvUrl': cvUrl,
+      'profilePictureUrl': profilePictureUrl,
     };
   }
+
+  String get fullName => '$firstName $lastName';
 }
