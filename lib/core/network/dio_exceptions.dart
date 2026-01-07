@@ -3,49 +3,116 @@ import 'package:dio/dio.dart';
 class AppDioException implements Exception {
   AppDioException.fromDioError(DioException dioError) {
     statusCode = dioError.response?.statusCode;
+    requestPath = dioError.requestOptions.path;
+
     switch (dioError.type) {
       case DioExceptionType.cancel:
-        message = "Request to API server was cancelled";
+        message = "Request was cancelled";
+        isRetryable = false;
       case DioExceptionType.connectionTimeout:
-        message = "Connection timeout with API server";
+        message = "Connection timeout. Please check your internet connection.";
+        isRetryable = true;
       case DioExceptionType.receiveTimeout:
-        message = "Receive timeout in connection with API server";
+        message = "Server is taking too long to respond. Please try again.";
+        isRetryable = true;
       case DioExceptionType.badResponse:
         message = _handleError(
           dioError.response?.statusCode,
           dioError.response?.data,
+          dioError.requestOptions.path,
         );
       case DioExceptionType.sendTimeout:
-        message = "Send timeout in connection with API server";
+        message = "Failed to send request. Please check your connection.";
+        isRetryable = true;
+      case DioExceptionType.badCertificate:
+        message = "Security certificate error";
+        isRetryable = false;
+      case DioExceptionType.connectionError:
+        message = 'No internet connection. Please check your network.';
+        isRetryable = true;
       case DioExceptionType.unknown:
         if (dioError.message?.contains("SocketException") ?? false) {
-          message = 'No Internet';
-          break;
+          message = 'No internet connection';
+          isRetryable = true;
+        } else {
+          message = "An unexpected error occurred";
+          isRetryable = false;
         }
-        message = "Unexpected error occurred";
-      default:
-        message = "Something went wrong";
     }
   }
+
   late String message;
   late int? statusCode;
+  late String requestPath;
+  bool isRetryable = false;
 
-  String _handleError(int? statusCode, dynamic error) {
+  String _handleError(int? statusCode, dynamic error, String path) {
+    // Extract error message from backend if available
+    String? backendMessage;
+    if (error is Map) {
+      backendMessage = error['message']?.toString() ??
+                      error['error']?.toString() ??
+                      error['detail']?.toString();
+    }
+
     switch (statusCode) {
       case 400:
-        return 'Bad request';
+        isRetryable = false;
+        return backendMessage ?? 'Invalid request. Please check your input.';
+
       case 401:
-        return 'Unauthorized';
+        isRetryable = false;
+        return 'Session expired. Please login again.';
+
       case 403:
-        return 'Forbidden';
+        isRetryable = false;
+        // Provide specific messages for known 403 scenarios
+        if (path.contains('/api/jobs/recruiters/me/jobs')) {
+          return 'Access denied. This feature requires recruiter privileges.\n\n'
+                 'If you are a recruiter, please contact support.';
+        } else if (path.contains('/api/categories')) {
+          return 'Unable to load categories. The backend may still be updating.\n\n'
+                 'Please try again in a moment.';
+        } else if (path.contains('/recruiters/') || path.contains('/admin/')) {
+          return 'Access denied. You don\'t have permission to access this resource.';
+        }
+        return backendMessage ?? 'Access denied. Please check your permissions.';
+
       case 404:
-        return error['message'].toString();
+        isRetryable = false;
+        return backendMessage ?? 'The requested resource was not found.';
+
+      case 409:
+        isRetryable = false;
+        return backendMessage ?? 'This action conflicts with existing data.';
+
+      case 422:
+        isRetryable = false;
+        return backendMessage ?? 'Unable to process your request. Please check your input.';
+
+      case 429:
+        isRetryable = true;
+        return 'Too many requests. Please wait a moment and try again.';
+
       case 500:
-        return 'Internal server error';
+        isRetryable = true;
+        return 'Server error. Our team has been notified. Please try again later.';
+
       case 502:
-        return 'Bad gateway';
+        isRetryable = true;
+        return 'Server is temporarily unavailable. Please try again.';
+
+      case 503:
+        isRetryable = true;
+        return 'Service temporarily unavailable. Please try again in a moment.';
+
+      case 504:
+        isRetryable = true;
+        return 'Server timeout. Please try again.';
+
       default:
-        return 'Oops something went wrong';
+        isRetryable = false;
+        return backendMessage ?? 'An error occurred. Please try again.';
     }
   }
 

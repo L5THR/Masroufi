@@ -38,6 +38,7 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
   final ImagePicker _picker = ImagePicker();
 
   bool _isInitialized = false;
+  bool _isUpdating = false;
 
   @override
   void dispose() {
@@ -80,6 +81,10 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
 
     print('✅ Form validation passed');
 
+    setState(() {
+      _isUpdating = true;
+    });
+
     // Upload company logo if selected
     String? companyLogoUrl;
     if (_companyLogo != null) {
@@ -121,7 +126,7 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
       ),
       body: BlocConsumer<UserCubit, UserState>(
         listener: (context, state) {
-          if (state is UserLoaded) {
+          if (state is UserLoaded && _isUpdating) {
             print('✅ Recruiter profile updated successfully');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -132,6 +137,9 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
             Navigator.pop(context, true); // Return true to indicate success
           } else if (state is UserError) {
             print('❌ Recruiter profile update failed: ${state.message}');
+            setState(() {
+              _isUpdating = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),

@@ -94,7 +94,7 @@ class _EditJobScreenState extends State<EditJobScreen> {
         _durationController.text = job.duration ?? '';
         _locationController.text = job.location ?? '';
         _requiresQuiz = job.requiresQuiz;
-        _selectedCategoryId = job.category.id;
+        _selectedCategoryId = job.category?.id; // Handle nullable category from DTO
         if (job.skills != null) {
           _selectedSkills.addAll(job.skills!);
         }

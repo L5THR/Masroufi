@@ -1,6 +1,8 @@
 // lib/views/onboarding/presentation/pages/onboarding_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_alinfo9/core/app_theme.dart';
+import 'package:flutter_alinfo9/views/auth/logic/cubit/auth_cubit.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -36,6 +38,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _navigateToRoleSelection() {
     Navigator.of(context).pushReplacementNamed('/role-selection');
+  }
+
+  void _browseAsGuest() {
+    context.read<AuthCubit>().continueAsGuest();
+    // The BlocListener in splash screen will handle navigation
   }
 
   void _handleNextOrGetStarted() {
@@ -74,7 +81,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           width: 150,
                           height: 150,
                           decoration: BoxDecoration(
-                            color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
+                            color: isDark
+                                ? AppTheme.tertiaryGrey
+                                : AppTheme.lightGrey,
                             borderRadius: BorderRadius.circular(30),
                           ),
                           child: Icon(
@@ -87,7 +96,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Text(
                           _pages[index]['title'],
                           style: TextStyle(
-                            color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                            color: isDark
+                                ? AppTheme.textWhite
+                                : AppTheme.textBlack,
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
                           ),
@@ -97,7 +108,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Text(
                           _pages[index]['description'],
                           style: TextStyle(
-                            color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                            color: isDark
+                                ? AppTheme.textGrey
+                                : AppTheme.textDarkGrey,
                             fontSize: 16,
                           ),
                           textAlign: TextAlign.center,
@@ -124,7 +137,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         decoration: BoxDecoration(
                           color: _currentPage == index
                               ? AppTheme.accentBlue
-                              : (isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey),
+                              : (isDark
+                                    ? AppTheme.tertiaryGrey
+                                    : AppTheme.lightGrey),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -156,15 +171,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   // Skip button
                   TextButton(
                     onPressed: _navigateToRoleSelection,
                     child: Text(
                       'Skip',
-                      style: TextStyle(color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey, fontSize: 16),
+                      style: TextStyle(
+                        color: isDark
+                            ? AppTheme.textGrey
+                            : AppTheme.textDarkGrey,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),

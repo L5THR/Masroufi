@@ -10,13 +10,13 @@ class Job {
   final double? salary;
   final String? duration;
   final RecruiterProfile? recruiter;
-  final Category category;
+  final Category? category; // Nullable for DTO format
   final String status;
   final bool requiresQuiz;
   final String? imageUrl;
   final List<String>? skills;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? updatedAt; // Nullable for DTO format
 
   Job({
     required this.id,
@@ -27,13 +27,13 @@ class Job {
     this.salary,
     this.duration,
     this.recruiter,
-    required this.category,
+    this.category, // Now nullable
     required this.status,
     required this.requiresQuiz,
     this.imageUrl,
     this.skills,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt, // Now nullable
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -51,17 +51,20 @@ class Job {
         recruiter: json['recruiter'] != null && json['recruiter'] is Map
             ? RecruiterProfile.fromJson(json['recruiter'] as Map<String, dynamic>)
             : null,
+        // Handle both DTO format (no category) and full format (with category)
         category: json['category'] != null && json['category'] is Map
             ? Category.fromJson(json['category'] as Map<String, dynamic>)
-            : Category(id: 0, name: 'Unknown'),
+            : null, // Can be null for DTO format
         status: json['status']?.toString() ?? 'OPEN',
         requiresQuiz: json['requiresQuiz'] == true || json['requiresQuiz'] == 'true',
         imageUrl: json['imageUrl']?.toString(),
         skills: _parseSkills(json['skills']),
         createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
             DateTime.now(),
-        updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
-            DateTime.now(),
+        // updatedAt is nullable for DTO format
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.tryParse(json['updatedAt'].toString())
+            : null,
       );
     } catch (e) {
       print('Error parsing Job from JSON: $e');
@@ -92,13 +95,13 @@ class Job {
       'salary': salary,
       'duration': duration,
       'recruiter': recruiter?.toJson(),
-      'category': category.toJson(),
+      'category': category?.toJson(),
       'status': status,
       'requiresQuiz': requiresQuiz,
       'imageUrl': imageUrl,
       'skills': skills,
       'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }

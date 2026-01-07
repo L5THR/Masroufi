@@ -3,10 +3,12 @@ import '../data/repositories/job_repository.dart';
 import 'job_state.dart';
 import '../data/models/paginated_response.dart';
 import '../data/models/job.dart';
+import '../data/models/category.dart';
 
 class JobCubit extends Cubit<JobState> {
   final JobRepository _repository;
   PaginatedResponse<Job>? _currentJobsPage;
+  List<Category>? _currentCategories;
   int _currentPage = 0;
 
   JobCubit(this._repository) : super(JobInitial());
@@ -45,11 +47,11 @@ class JobCubit extends Cubit<JobState> {
           last: jobs.last,
           empty: jobs.empty && _currentJobsPage!.empty,
         );
-        emit(JobsLoaded(_currentJobsPage!));
+        emit(JobsLoaded(_currentJobsPage!, categories: _currentCategories));
       } else {
         _currentJobsPage = jobs;
         _currentPage = page;
-        emit(JobsLoaded(jobs));
+        emit(JobsLoaded(jobs, categories: _currentCategories));
       }
     } catch (e) {
       emit(JobError(e.toString()));
@@ -100,11 +102,11 @@ class JobCubit extends Cubit<JobState> {
           last: jobs.last,
           empty: jobs.empty && _currentJobsPage!.empty,
         );
-        emit(JobsLoaded(_currentJobsPage!));
+        emit(JobsLoaded(_currentJobsPage!, categories: _currentCategories));
       } else {
         _currentJobsPage = jobs;
         _currentPage = page;
-        emit(JobsLoaded(jobs));
+        emit(JobsLoaded(jobs, categories: _currentCategories));
       }
     } catch (e) {
       emit(JobError(e.toString()));
@@ -125,7 +127,8 @@ class JobCubit extends Cubit<JobState> {
     emit(CategoriesLoading());
     try {
       final response = await _repository.getCategories();
-      emit(CategoriesLoaded(response.content));
+      _currentCategories = response.content;
+      emit(CategoriesLoaded(response.content, jobs: _currentJobsPage));
     } catch (e) {
       emit(JobError(e.toString()));
     }

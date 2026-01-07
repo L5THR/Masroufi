@@ -173,6 +173,21 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  // ==================== FORCE CLEAR SESSION (DEV TOOL) ====================
+  /// Force clear all session data - useful when token is corrupted/expired
+  /// This is a developer tool for debugging auth issues
+  Future<void> forceClearSession() async {
+    try {
+      debugPrint('🔧 [DEV] Force clearing session...');
+      await HiveStorage.clearAll();
+      DioClient.instance.removeAuthToken();
+      emit(AuthInitial());
+      debugPrint('✅ [DEV] Session cleared successfully');
+    } catch (e) {
+      debugPrint('❌ [DEV] Error clearing session: $e');
+    }
+  }
+
   // ==================== GET REDIRECT ROUTE ====================
   String getRedirectRoute(String? role) {
     switch (role?.toUpperCase()) {
@@ -187,8 +202,21 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  // ==================== CONTINUE AS GUEST ====================
+  /// Allow user to browse without authentication
+  void continueAsGuest() {
+    debugPrint('👤 User continuing as guest');
+    emit(const AuthGuest());
+  }
+
   // ==================== RESET STATE ====================
   void reset() {
     emit(AuthInitial());
   }
+
+  // ==================== CHECK IF GUEST ====================
+  bool get isGuest => state is AuthGuest;
+
+  // ==================== CHECK IF AUTHENTICATED ====================
+  bool get isAuthenticated => state is AuthLoginSuccess;
 }

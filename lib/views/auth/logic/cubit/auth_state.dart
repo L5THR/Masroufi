@@ -12,6 +12,11 @@ class AuthInitial extends AuthState {}
 
 class AuthLoading extends AuthState {}
 
+/// User is browsing as a guest (not authenticated)
+class AuthGuest extends AuthState {
+  const AuthGuest();
+}
+
 class AuthLoginSuccess extends AuthState {
   final LoginResponse response;
 
@@ -28,4 +33,18 @@ class AuthError extends AuthState {
 
   @override
   List<Object?> get props => [message];
+}
+
+// Extension to easily check auth status
+extension AuthStateExtension on AuthState {
+  bool get isAuthenticated => this is AuthLoginSuccess;
+  bool get isGuest => this is AuthGuest;
+  bool get isLoading => this is AuthLoading;
+
+  String? get userRole {
+    if (this is AuthLoginSuccess) {
+      return (this as AuthLoginSuccess).response.role;
+    }
+    return null;
+  }
 }

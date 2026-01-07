@@ -19,11 +19,12 @@ class CategoriesLoading extends JobState {}
 class JobsLoaded extends JobState {
   final PaginatedResponse<Job> jobs;
   final bool isLoadingMore;
+  final List<Category>? categories; // Include categories to preserve state
 
-  const JobsLoaded(this.jobs, {this.isLoadingMore = false});
+  const JobsLoaded(this.jobs, {this.isLoadingMore = false, this.categories});
 
   @override
-  List<Object?> get props => [jobs, isLoadingMore];
+  List<Object?> get props => [jobs, isLoadingMore, categories];
 }
 
 class JobLoaded extends JobState {
@@ -37,11 +38,12 @@ class JobLoaded extends JobState {
 
 class CategoriesLoaded extends JobState {
   final List<Category> categories;
+  final PaginatedResponse<Job>? jobs; // Include jobs to preserve state
 
-  const CategoriesLoaded(this.categories);
+  const CategoriesLoaded(this.categories, {this.jobs});
 
   @override
-  List<Object?> get props => [categories];
+  List<Object?> get props => [categories, jobs];
 }
 
 class JobError extends JobState {

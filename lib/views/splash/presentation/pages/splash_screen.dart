@@ -54,8 +54,11 @@ class _SplashScreenState extends State<SplashScreen>
       final route =
           context.read<AuthCubit>().getRedirectRoute(state.response.role);
       Navigator.of(context).pushReplacementNamed(route);
+    } else if (state is AuthGuest) {
+      // Navigate to job seeker home as guest (public browsing)
+      Navigator.of(context).pushReplacementNamed('/job-seeker-home');
     } else if (state is AuthInitial || state is AuthError) {
-      Navigator.of(context).pushReplacementNamed('/login');
+      Navigator.of(context).pushReplacementNamed('/onboarding');
     }
   }
 

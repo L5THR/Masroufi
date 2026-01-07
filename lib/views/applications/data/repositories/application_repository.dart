@@ -42,6 +42,10 @@ class ApplicationRepository {
     int size = 20,
   }) async {
     try {
+      print('📡 Getting my applications...');
+      print('📡 Endpoint: ${ApiEndpoints.myApplications}');
+      print('📡 Query params: page=$page, size=$size');
+
       final response = await _dioClient.get(
         ApiEndpoints.myApplications,
         queryParameters: {
@@ -51,10 +55,20 @@ class ApplicationRepository {
         },
       );
 
+      print('✅ Response status: ${response.statusCode}');
+      print('✅ Response data: ${response.data}');
+
       final content = response.data['content'] as List;
+      print('✅ Found ${content.length} applications');
       return content.map((json) => JobApplication.fromJson(json)).toList();
     } on DioException catch (e) {
+      print('❌ Error getting applications: ${e.response?.statusCode}');
+      print('❌ Error message: ${e.message}');
+      print('❌ Error response: ${e.response?.data}');
       throw _handleError(e);
+    } catch (e) {
+      print('❌ Unexpected error: $e');
+      rethrow;
     }
   }
 
@@ -130,25 +144,33 @@ class ApplicationRepository {
           }
           return 'Invalid request. Please check your input.';
         case 401:
-          return 'Please login to continue.';
+          return 'Authentication required. Please login again.';
         case 403:
-          return 'You do not have permission to perform this action.';
+          return 'Access denied. This feature requires job seeker privileges.';
         case 404:
           return 'Job or application not found.';
         case 409:
           return 'You have already applied to this job.';
         case 500:
-          return 'Server error. Please try again later.';
+          String message = 'Server error. ';
+          if (data is Map && data.containsKey('message')) {
+            message += data['message'];
+          } else if (data is Map && data.containsKey('error')) {
+            message += data['error'];
+          } else {
+            message += 'The backend server may not be running or the endpoint may not be implemented yet.';
+          }
+          return message;
         default:
-          return 'Something went wrong. Please try again.';
+          return 'Something went wrong (HTTP $statusCode). Please try again.';
       }
     } else if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
       return 'Connection timeout. Please check your internet.';
     } else if (error.type == DioExceptionType.connectionError) {
-      return 'No internet connection.';
+      return 'Cannot connect to server. Make sure the backend is running at ${error.requestOptions.baseUrl}';
     }
 
-    return 'An unexpected error occurred.';
+    return 'An unexpected error occurred: ${error.message}';
   }
 }

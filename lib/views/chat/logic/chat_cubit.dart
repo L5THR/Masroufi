@@ -1,70 +1,138 @@
-// import 'dart:convert';
-// import 'package:flutter_alinfo9/views/chat/data/models/chat_messege.dart';
-// import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_alinfo9/views/chat/data/models/chat_messege.dart';
+import 'package:flutter_alinfo9/views/chat/data/repositories/chat_repository.dart';
+import 'chat_state.dart';
 
-// import '../data/websocket_service.dart';
-// import 'chat_state.dart';
+class ChatCubit extends Cubit<ChatState> {
+  final ChatRepository _repository;
 
-// class ChatCubit extends Cubit<ChatState> {
-//   final WebSocketService service;
+  ChatCubit(this._repository) : super(ChatInitial());
 
-//   ChatCubit(this.service) : super(ChatState(messages: [], isTyping: false));
+  // ==================== LOAD CHAT HISTORY ====================
 
-//   void init(String userId, String role, String roomId) {
-//     // service.connect("ws://10.0.2.2:8000"); // andriod emulator
-//     service.connect("ws://localhost:8000"); // chrome emulator
+  /// Load chat history with a specific user
+  Future<void> loadChatHistory(int userId, {int page = 0}) async {
+    try {
+      emit(ChatLoading());
 
-//     service.joinRoom(userId, role, roomId);
+      final messages = await _repository.getChatHistory(
+        userId: userId,
+        page: page,
+        size: 50,
+      );
 
-//     service.stream.listen((event) {
-//       final data = jsonDecode(event);
+      // Sort messages by timestamp (oldest first for chat)
+      messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-//       switch (data["type"]) {
-//         case "joined":
-//           final list = (data["messages"] as List)
-//               .map((m) => ChatMessage.fromJson(m))
-//               .toList();
-//           emit(state.copyWith(messages: list));
-//           break;
+      emit(ChatHistoryLoaded(
+        messages: messages,
+        userId: userId,
+        hasMore: messages.length >= 50, // If we got a full page, there might be more
+      ));
+    } catch (e) {
+      print('❌ Error loading chat history: $e');
+      emit(ChatError(e.toString()));
+    }
+  }
 
-//         case "new_message":
-//           final msg = ChatMessage.fromJson(data["message"]);
-//           emit(state.copyWith(messages: [...state.messages, msg]));
-//           break;
+  // ==================== SEND MESSAGE ====================
 
-//         case "typing":
-//           emit(state.copyWith(isTyping: data["isTyping"]));
-//           break;
+  /// Send a message to a user
+  Future<void> sendMessage(int recipientId, String message) async {
+    try {
+      // Get current messages if we're in a loaded state
+      List<ChatMessage> currentMessages = [];
+      if (state is ChatHistoryLoaded) {
+        currentMessages = (state as ChatHistoryLoaded).messages;
+      }
 
-//         case "delivered":
-//         case "seen":
-//           _updateMessageStatus(data);
-//           break;
-//       }
-//     });
-//   }
+      emit(ChatSendingMessage());
 
-//   void _updateMessageStatus(data) {
-//     final updated = state.messages.map((m) {
-//       if (m.id == data["messageId"]) {
-//         return ChatMessage(
-//           id: m.id,
-//           roomId: m.roomId,
-//           senderId: m.senderId,
-//           senderRole: m.senderRole,
-//           text: m.text,
-//           timestamp: m.timestamp,
-//           delivered: data["type"] == "delivered" ? true : m.delivered,
-//           seen: data["type"] == "seen" ? true : m.seen,
-//         );
-//       }
-//       return m;
-//     }).toList();
+      final sentMessage = await _repository.sendMessage(
+        recipientId: recipientId,
+        message: message,
+      );
 
-//     emit(state.copyWith(messages: updated));
-//   }
+      // Add the new message to the list
+      final updatedMessages = [...currentMessages, sentMessage];
 
-//   void sendMessage(String text) => service.sendMessage(text);
+      // Emit success state with updated messages
+      emit(ChatHistoryLoaded(
+        messages: updatedMessages,
+        userId: recipientId,
+      ));
 
-//   void setTyping(bool typing) => service.setTyping(typing);
-// }
+      // Briefly show message sent confirmation
+      emit(ChatMessageSent(sentMessage));
+
+      // Return to loaded state with all messages
+      emit(ChatHistoryLoaded(
+        messages: updatedMessages,
+        userId: recipientId,
+      ));
+    } catch (e) {
+      print('❌ Error sending message: $e');
+
+      // Preserve current messages on error
+      List<ChatMessage> currentMessages = [];
+      if (state is ChatHistoryLoaded) {
+        currentMessages = (state as ChatHistoryLoaded).messages;
+      }
+
+      emit(ChatSendError(e.toString(), currentMessages));
+
+      // After showing error, return to loaded state
+      if (currentMessages.isNotEmpty) {
+        emit(ChatHistoryLoaded(
+          messages: currentMessages,
+          userId: recipientId,
+        ));
+      }
+    }
+  }
+
+  // ==================== LOAD MORE MESSAGES ====================
+
+  /// Load more messages (pagination)
+  Future<void> loadMoreMessages(int userId, int currentPage) async {
+    try {
+      if (state is! ChatHistoryLoaded) return;
+
+      final currentState = state as ChatHistoryLoaded;
+      final currentMessages = currentState.messages;
+
+      final moreMessages = await _repository.getChatHistory(
+        userId: userId,
+        page: currentPage + 1,
+        size: 50,
+      );
+
+      // Combine and sort all messages
+      final allMessages = [...currentMessages, ...moreMessages];
+      allMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      emit(ChatHistoryLoaded(
+        messages: allMessages,
+        userId: userId,
+        hasMore: moreMessages.length >= 50,
+      ));
+    } catch (e) {
+      print('❌ Error loading more messages: $e');
+      // Keep current state on error
+    }
+  }
+
+  // ==================== REFRESH CHAT ====================
+
+  /// Refresh chat history (pull-to-refresh)
+  Future<void> refreshChat(int userId) async {
+    await loadChatHistory(userId, page: 0);
+  }
+
+  // ==================== CLEAR CHAT ====================
+
+  /// Clear chat state and return to initial
+  void clearChat() {
+    emit(ChatInitial());
+  }
+}

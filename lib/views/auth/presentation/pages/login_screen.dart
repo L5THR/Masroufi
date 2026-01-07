@@ -57,7 +57,9 @@ class _LoginViewState extends State<LoginView> {
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthLoginSuccess) {
-            final route = context.read<AuthCubit>().getRedirectRoute(state.response.role);
+            final route = context.read<AuthCubit>().getRedirectRoute(
+              state.response.role,
+            );
             Navigator.of(context).pushReplacementNamed(route);
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -82,7 +84,7 @@ class _LoginViewState extends State<LoginView> {
                   children: [
                     const SizedBox(height: 40),
                     Text(
-                      'Welcome Back',
+                      'Masroufi',
                       style: TextStyle(
                         color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
                         fontSize: 32,
@@ -91,7 +93,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Sign in to continue',
+                      'Welcome back! Sign in to continue',
                       style: TextStyle(
                         color: isDark
                             ? AppTheme.textGrey
@@ -99,8 +101,8 @@ class _LoginViewState extends State<LoginView> {
                         fontSize: 16,
                       ),
                     ),
-                    const SizedBox(height: 32),
                     // Demo credentials hint
+                    /*
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -141,7 +143,16 @@ class _LoginViewState extends State<LoginView> {
                             ),
                           ),
                           Text(
-                            'Password: Password123',
+                            'Admin: admin@gmail.com',
+                            style: TextStyle(
+                              color: isDark
+                                  ? AppTheme.textGrey
+                                  : AppTheme.textDarkGrey,
+                              fontSize: 11,
+                            ),
+                          ),
+                          Text(
+                            'Password: Password123 (or adminadmin1 for admin)',
                             style: TextStyle(
                               color: isDark
                                   ? AppTheme.textGrey
@@ -152,6 +163,7 @@ class _LoginViewState extends State<LoginView> {
                         ],
                       ),
                     ),
+                    */
                     const SizedBox(height: 24),
                     CustomTextField(
                       label: 'Email',
@@ -231,6 +243,31 @@ class _LoginViewState extends State<LoginView> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 32),
+                    // Debug tool - clear session if token is corrupted
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          await context.read<AuthCubit>().forceClearSession();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Session cleared. You can now login again.'),
+                                backgroundColor: AppTheme.accentGreen,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: Text(
+                          'Clear Session (Fix Login Issues)',
+                          style: TextStyle(
+                            color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

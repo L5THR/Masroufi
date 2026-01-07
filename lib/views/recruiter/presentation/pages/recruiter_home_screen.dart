@@ -15,6 +15,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/app_theme.dart';
 import '../../../../main.dart';
 import '../../../auth/logic/cubit/auth_cubit.dart';
+import '../../../quiz/presentation/pages/quiz_creation_screen.dart';
+import '../../../notifications/logic/notification_cubit.dart';
+import '../../../notifications/logic/notification_state.dart';
+import '../../../notifications/presentation/widgets/notification_badge.dart';
 
 class RecruiterHomeScreen extends StatefulWidget {
   const RecruiterHomeScreen({Key? key}) : super(key: key);
@@ -129,31 +133,41 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('MASROUFI Recruiter'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+    return PopScope(
+      canPop: false, // Disable back button
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('MASROUFI Recruiter'),
+          automaticallyImplyLeading: false, // Remove back button from AppBar
+          actions: [
+            IconButton(
+              icon: Icon(
+                isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              ),
+              onPressed: () {
+                MasroufiApp.of(context)?.toggleTheme();
+              },
             ),
-            onPressed: () {
-              MasroufiApp.of(context)?.toggleTheme();
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('No new notifications'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+            BlocBuilder<NotificationCubit, NotificationState>(
+              builder: (context, state) {
+                int unreadCount = 0;
+                if (state is NotificationLoaded) {
+                  unreadCount = state.unreadCount;
+                }
+
+                return IconButton(
+                  icon: NotificationBadge(
+                    count: unreadCount,
+                    child: const Icon(Icons.notifications_outlined),
+                  ),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/notifications');
+                  },
+                );
+              },
+            ),
+          ],
+        ),
       body: _buildBody(),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton.extended(
@@ -186,6 +200,7 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
+      ),
       ),
     );
   }
@@ -736,6 +751,28 @@ class _RecruiterJobCard extends StatelessWidget {
             },
           ),
           const SizedBox(height: 8),
+
+          // Quiz Management Button (if quiz required)
+          if (job.requiresQuiz) ...[
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => QuizCreationScreen(jobId: job.id),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.quiz),
+              label: const Text('Manage Quiz'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.accentBlue,
+                side: const BorderSide(color: AppTheme.accentBlue),
+                minimumSize: const Size(double.infinity, 40),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
 
           // Edit and View Buttons
           Row(

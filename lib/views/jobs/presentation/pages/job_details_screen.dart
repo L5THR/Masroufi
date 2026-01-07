@@ -7,6 +7,7 @@ import 'package:flutter_alinfo9/views/jobs/logic/job_cubit.dart';
 import 'package:flutter_alinfo9/views/jobs/logic/job_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/app_theme.dart';
+import '../../../../core/utils/auth_guard.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../applications/logic/application_cubit.dart';
 import '../../../applications/logic/application_state.dart';
@@ -64,6 +65,16 @@ class _JobDetailsViewState extends State<_JobDetailsView> {
             IconButton(
               icon: const Icon(Icons.bookmark_border),
               onPressed: () {
+                // Check if user is authenticated before saving
+                if (!AuthGuard.requireAuth(
+                  context,
+                  title: 'Login to Save Jobs',
+                  message:
+                      'Create an account or login to save jobs for later.',
+                )) {
+                  return;
+                }
+
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(const SnackBar(content: Text('Job saved!')));
@@ -102,10 +113,46 @@ class _JobDetailsViewState extends State<_JobDetailsView> {
         },
         child: BlocBuilder<JobCubit, JobState>(
           builder: (context, state) {
-            if (state is JobLoading) {
+            if (state is JobLoading || state is JobInitial) {
               return const Center(child: CircularProgressIndicator());
             } else if (state is JobError) {
-              return Center(child: Text(state.message));
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        state.message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          if (widget.jobId != null) {
+                            context.read<JobCubit>().getJobById(widget.jobId!);
+                          }
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             } else if (state is JobLoaded) {
               final job = state.job;
               return SingleChildScrollView(
@@ -389,6 +436,7 @@ class _JobDetailsViewState extends State<_JobDetailsView> {
                       isLoading: isApplying,
                       onPressed: () {
                         print('🔵 Apply Now button clicked');
+
                         if (widget.jobId != null) {
                           print('🔵 Job ID: ${widget.jobId}');
                           // Show confirmation dialog

@@ -59,6 +59,7 @@ class ApiEndpoints {
   static String quizAttempts(int quizId) => '$quizzes/$quizId/attempts';
 
   // ==================== CHAT ====================
+  static const String chatMessages = '$_api/chat/messages';
   static const String chatConversations = '$_api/chat/conversations';
   static String chatHistory(int userId) => '$_api/chat/history/$userId';
 

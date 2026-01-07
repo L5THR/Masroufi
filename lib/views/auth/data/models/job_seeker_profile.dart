@@ -16,10 +16,29 @@ class JobSeekerProfile {
   });
 
   factory JobSeekerProfile.fromJson(Map<String, dynamic> json) {
+    // Handle both DTO format (fullName) and full profile format (firstName/lastName)
+    String firstName = '';
+    String lastName = '';
+
+    if (json.containsKey('fullName') && json['fullName'] != null) {
+      // DTO format: parse fullName into firstName and lastName
+      final parts = (json['fullName'] as String).split(' ');
+      if (parts.isNotEmpty) {
+        firstName = parts.first;
+        if (parts.length > 1) {
+          lastName = parts.sublist(1).join(' ');
+        }
+      }
+    } else {
+      // Full profile format
+      firstName = json['firstName'] ?? '';
+      lastName = json['lastName'] ?? '';
+    }
+
     return JobSeekerProfile(
       id: json['id'] ?? 0,
-      firstName: json['firstName'] ?? '',
-      lastName: json['lastName'] ?? '',
+      firstName: firstName,
+      lastName: lastName,
       phoneNumber: json['phoneNumber'],
       cvUrl: json['cvUrl'],
       profilePictureUrl: json['profilePictureUrl'],

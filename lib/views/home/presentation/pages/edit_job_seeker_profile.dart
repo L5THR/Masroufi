@@ -8,6 +8,7 @@ import '../../../auth/logic/cubit/user_state.dart';
 import '../../../widgets/custom_button.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 
 class EditJobSeekerProfileScreen extends StatelessWidget {
   const EditJobSeekerProfileScreen({Key? key}) : super(key: key);
@@ -41,6 +42,7 @@ class _EditJobSeekerProfileViewState
   final ImagePicker _picker = ImagePicker();
 
   bool _isInitialized = false;
+  bool _isUpdating = false;
 
   @override
   void dispose() {
@@ -75,6 +77,39 @@ class _EditJobSeekerProfileViewState
     }
   }
 
+  Future<void> _pickCVFile() async {
+    try {
+      print('📄 Opening file picker for CV');
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _cvFile = File(result.files.single.path!);
+        });
+        print('✅ CV file selected: ${result.files.single.name}');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('CV selected: ${result.files.single.name}'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error picking CV file: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick CV: $e'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+    }
+  }
+
   Future<void> _updateProfile() async {
     print('🔵 Update profile button clicked');
     if (!_formKey.currentState!.validate()) {
@@ -84,12 +119,17 @@ class _EditJobSeekerProfileViewState
 
     print('✅ Form validation passed');
 
+    setState(() {
+      _isUpdating = true;
+    });
+
+    final uploadRepo = FileUploadRepository();
+
     // Upload profile picture if selected
     String? profilePictureUrl;
     if (_profileImage != null) {
       try {
         print('📤 Uploading profile picture...');
-        final uploadRepo = FileUploadRepository();
         profilePictureUrl = await uploadRepo.uploadFile(_profileImage!);
         print('✅ Profile picture uploaded: $profilePictureUrl');
       } catch (e) {
@@ -105,6 +145,26 @@ class _EditJobSeekerProfileViewState
       }
     }
 
+    // Upload CV if selected
+    String? cvUrl;
+    if (_cvFile != null) {
+      try {
+        print('📤 Uploading CV...');
+        cvUrl = await uploadRepo.uploadFile(_cvFile!);
+        print('✅ CV uploaded: $cvUrl');
+      } catch (e) {
+        print('❌ Failed to upload CV: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload CV: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+        return;
+      }
+    }
+
     print('🔵 Calling updateJobSeekerProfile...');
     await context.read<UserCubit>().updateJobSeekerProfile(
           firstName: _firstNameController.text.trim(),
@@ -113,6 +173,7 @@ class _EditJobSeekerProfileViewState
               ? null
               : _phoneController.text.trim(),
           profilePictureUrl: profilePictureUrl,
+          cvUrl: cvUrl,
         );
   }
 
@@ -126,7 +187,7 @@ class _EditJobSeekerProfileViewState
       ),
       body: BlocConsumer<UserCubit, UserState>(
         listener: (context, state) {
-          if (state is UserLoaded) {
+          if (state is UserLoaded && _isUpdating) {
             print('✅ Profile updated successfully');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -137,6 +198,9 @@ class _EditJobSeekerProfileViewState
             Navigator.pop(context, true); // Return true to indicate success
           } else if (state is UserError) {
             print('❌ Profile update failed: ${state.message}');
+            setState(() {
+              _isUpdating = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -265,6 +329,112 @@ class _EditJobSeekerProfileViewState
                     ),
                     keyboardType: TextInputType.phone,
                     enabled: !isUpdating,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // CV Upload Section
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppTheme.tertiaryGrey
+                          : AppTheme.lightGrey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _cvFile != null
+                            ? AppTheme.successGreen
+                            : (isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              color: _cvFile != null
+                                  ? AppTheme.successGreen
+                                  : AppTheme.accentBlue,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'CV / Resume',
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppTheme.textWhite
+                                    : AppTheme.textBlack,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (_cvFile != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.successGreen.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: AppTheme.successGreen,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _cvFile!.path.split('/').last,
+                                    style: const TextStyle(
+                                      color: AppTheme.successGreen,
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 20,
+                                    color: AppTheme.errorRed,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _cvFile = null;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        OutlinedButton.icon(
+                          onPressed: isUpdating ? null : _pickCVFile,
+                          icon: Icon(
+                            _cvFile != null ? Icons.upload_file : Icons.upload,
+                          ),
+                          label: Text(_cvFile != null ? 'Change CV' : 'Upload CV'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.accentBlue,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Accepted formats: PDF, DOC, DOCX',
+                          style: TextStyle(
+                            color: isDark
+                                ? AppTheme.textGrey
+                                : AppTheme.textDarkGrey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 32),
 

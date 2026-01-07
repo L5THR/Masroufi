@@ -1,34 +1,37 @@
+import '../../../admin/data/models/user_account.dart';
+
 class ChatMessage {
   final int id;
-  final String roomId;
-  final String senderId;
-  final String senderRole;
-  final String text;
+  final UserAccount sender;
+  final UserAccount recipient;
+  final String message;
   final DateTime timestamp;
-  final bool delivered;
-  final bool seen;
 
   ChatMessage({
     required this.id,
-    required this.roomId,
-    required this.senderId,
-    required this.senderRole,
-    required this.text,
+    required this.sender,
+    required this.recipient,
+    required this.message,
     required this.timestamp,
-    required this.delivered,
-    required this.seen,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      id: json['id'],
-      roomId: json['roomId'],
-      senderId: json['senderId'],
-      senderRole: json['senderRole'],
-      text: json['text'],
-      timestamp: DateTime.parse(json['timestamp']),
-      delivered: json['delivered'],
-      seen: json['seen'],
+      id: json['id'] as int,
+      sender: UserAccount.fromJson(json['sender'] as Map<String, dynamic>),
+      recipient: UserAccount.fromJson(json['recipient'] as Map<String, dynamic>),
+      message: json['message'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'sender': sender.toJson(),
+      'recipient': recipient.toJson(),
+      'message': message,
+      'timestamp': timestamp.toIso8601String(),
+    };
   }
 }

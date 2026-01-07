@@ -24,18 +24,22 @@ class MessageBubble extends StatelessWidget {
               : CrossAxisAlignment.start,
           children: [
             Text(
-              message.text,
+              message.message,
               style: TextStyle(color: isMe ? Colors.white : Colors.black),
             ),
             const SizedBox(height: 4),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Text(
+                //   message.delivered ? "✓" : "",
+                //   style: TextStyle(fontSize: 12),
+                // ),
+                // Text(message.seen ? "✓" : "", style: TextStyle(fontSize: 12)),
                 Text(
-                  message.delivered ? "✓" : "",
+                  message.timestamp.toString(),
                   style: TextStyle(fontSize: 12),
                 ),
-                Text(message.seen ? "✓" : "", style: TextStyle(fontSize: 12)),
               ],
             ),
           ],

@@ -8,6 +8,7 @@ import 'core/storage/hive_storage.dart';
 
 // Auth
 import 'views/auth/logic/cubit/auth_cubit.dart';
+import 'views/auth/logic/cubit/auth_state.dart';
 import 'views/auth/data/repositories/auth_repository.dart';
 import 'views/auth/presentation/pages/login_screen.dart';
 import 'views/auth/presentation/pages/register_job_seeker_screen.dart';
@@ -41,22 +42,33 @@ import 'views/jobs/logic/saved_job_cubit.dart';
 import 'views/jobs/data/repositories/saved_job_repository.dart';
 
 // Applications
+import 'views/applications/logic/application_cubit.dart';
 import 'views/applications/data/repositories/application_repository.dart';
 import 'views/applications/presentation/pages/my_applications_screen.dart';
 import 'views/applications/presentation/pages/application_management_screen.dart';
 
 // User
+import 'views/auth/logic/cubit/user_cubit.dart';
 import 'views/auth/data/repositories/user_repository.dart';
-
 
 // Quiz
 import 'views/quiz/presentation/pages/quiz_screen.dart';
+import 'views/quiz/data/repositories/quiz_repository.dart';
 
 // Chat
 import 'views/chat/presentation/pages/chat_page.dart';
 
+// Notifications
+import 'views/notifications/presentation/pages/notifications_screen.dart';
+import 'views/notifications/logic/notification_cubit.dart';
+import 'views/notifications/data/repositories/notification_repository.dart';
+
 // Admin
-import 'views/admin/presentation/pages/admin_dashboard_screen.dart';
+import 'views/admin/presentation/pages/admin_dashboard_integrated.dart';
+import 'views/admin/logic/admin_dashboard_cubit.dart';
+import 'views/admin/logic/admin_users_cubit.dart';
+import 'views/admin/logic/admin_reports_cubit.dart';
+import 'views/admin/data/repositories/admin_repository.dart';
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -124,26 +136,36 @@ class _MasroufiAppState extends State<MasroufiApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
-        // Global Auth Cubit - Available throughout the app
-        BlocProvider(
-          create: (context) => AuthCubit(AuthRepository()),
-          lazy: false,
-        ),
-
-        // Add more global providers here as we build them:
-        // BlocProvider(create: (context) => ProfileCubit(ProfileRepository())),
-        // BlocProvider(create: (context) => NotificationCubit(NotificationRepository())),
+        // Global Repository Providers
+        RepositoryProvider(create: (context) => QuizRepository()),
+        RepositoryProvider(create: (context) => JobRepository()),
+        RepositoryProvider(create: (context) => ApplicationRepository()),
       ],
-      child: MaterialApp(
-        title: 'MASROUFI',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: _themeMode,
-        initialRoute: '/',
-        onGenerateRoute: _onGenerateRoute,
+      child: MultiBlocProvider(
+        providers: [
+          // Global Auth Cubit - Available throughout the app
+          BlocProvider(
+            create: (context) => AuthCubit(AuthRepository()),
+            lazy: false,
+          ),
+
+          // Global Notification Cubit - Available throughout the app
+          BlocProvider(
+            create: (context) => NotificationCubit(NotificationRepository()),
+            lazy: false,
+          ),
+        ],
+        child: MaterialApp(
+          title: 'MASROUFI',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: _themeMode,
+          initialRoute: '/',
+          onGenerateRoute: _onGenerateRoute,
+        ),
       ),
     );
   }
@@ -193,11 +215,17 @@ class _MasroufiAppState extends State<MasroufiApp> {
         return MaterialPageRoute(
           builder: (_) => MultiBlocProvider(
             providers: [
+              BlocProvider(create: (context) => JobCubit(JobRepository())),
               BlocProvider(
-                create: (context) => JobCubit(JobRepository()),
+                create: (context) => SavedJobCubit(
+                  SavedJobRepository(dioClient: DioClient.instance),
+                ),
               ),
               BlocProvider(
-                create: (context) => SavedJobCubit(SavedJobRepository(dioClient: DioClient.instance)),
+                create: (context) => ApplicationCubit(ApplicationRepository()),
+              ),
+              BlocProvider(
+                create: (context) => UserCubit(UserRepository()),
               ),
             ],
             child: const JobSeekerHomeScreen(),
@@ -211,7 +239,7 @@ class _MasroufiAppState extends State<MasroufiApp> {
           settings: settings,
         );
 
-      // ==================== RECRUITER ====================
+      // ==================== RECRUITER ==================== //
       case '/recruiter-home':
         return MaterialPageRoute(
           builder: (_) => MultiBlocProvider(
@@ -312,10 +340,52 @@ class _MasroufiAppState extends State<MasroufiApp> {
           settings: settings,
         );
 
+      // ==================== NOTIFICATIONS ====================
+      case '/notifications':
+        return MaterialPageRoute(
+          builder: (_) => const NotificationsScreen(),
+          settings: settings,
+        );
+
       // ==================== ADMIN ====================
       case '/admin-dashboard':
         return MaterialPageRoute(
-          builder: (_) => const AdminDashboardScreen(),
+          builder: (context) {
+            // Auth guard - verify user is admin
+            final authState = context.read<AuthCubit>().state;
+            if (authState is! AuthLoginSuccess ||
+                authState.response.role != 'ADMIN') {
+              // Not authorized - redirect to login
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pushReplacementNamed('/login');
+              });
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            // Authorized admin - show integrated dashboard
+            return MultiBlocProvider(
+              providers: [
+                BlocProvider(
+                  create: (context) => AdminDashboardCubit(
+                    repository: AdminRepository(),
+                  )..loadDashboard(),
+                ),
+                BlocProvider(
+                  create: (context) => AdminUsersCubit(
+                    repository: AdminRepository(),
+                  )..loadUsers(),
+                ),
+                BlocProvider(
+                  create: (context) => AdminReportsCubit(
+                    repository: AdminRepository(),
+                  )..loadReports(),
+                ),
+              ],
+              child: const AdminDashboardIntegrated(),
+            );
+          },
           settings: settings,
         );
 
