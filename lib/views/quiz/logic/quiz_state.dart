@@ -94,22 +94,26 @@ class QuizCreationInitial extends QuizCreationState {}
 class QuizCreationInProgress extends QuizCreationState {
   final String title;
   final List<QuestionDraft> questions;
+  final int? editingQuizId; // Non-null when editing an existing quiz
 
   const QuizCreationInProgress({
     this.title = '',
     this.questions = const [],
+    this.editingQuizId,
   });
 
   @override
-  List<Object?> get props => [title, questions];
+  List<Object?> get props => [title, questions, editingQuizId];
 
   QuizCreationInProgress copyWith({
     String? title,
     List<QuestionDraft>? questions,
+    int? editingQuizId,
   }) {
     return QuizCreationInProgress(
       title: title ?? this.title,
       questions: questions ?? this.questions,
+      editingQuizId: editingQuizId ?? this.editingQuizId,
     );
   }
 
@@ -118,17 +122,31 @@ class QuizCreationInProgress extends QuizCreationState {
         questions.isNotEmpty &&
         questions.every((q) => q.isValid);
   }
+
+  bool get isEditMode => editingQuizId != null;
 }
 
 class QuizCreating extends QuizCreationState {}
 
 class QuizCreated extends QuizCreationState {
   final Quiz quiz;
+  final bool wasUpdate;
 
-  const QuizCreated({required this.quiz});
+  const QuizCreated({required this.quiz, this.wasUpdate = false});
 
   @override
-  List<Object?> get props => [quiz];
+  List<Object?> get props => [quiz, wasUpdate];
+}
+
+/// State when both job and quiz are created together (new flow)
+class JobAndQuizCreated extends QuizCreationState {
+  final int jobId;
+  final Quiz quiz;
+
+  const JobAndQuizCreated({required this.jobId, required this.quiz});
+
+  @override
+  List<Object?> get props => [jobId, quiz];
 }
 
 class QuizCreationFailure extends QuizCreationState {
@@ -138,6 +156,10 @@ class QuizCreationFailure extends QuizCreationState {
 
   @override
   List<Object?> get props => [error];
+}
+
+class QuizDeleted extends QuizCreationState {
+  const QuizDeleted();
 }
 
 // ==================== HELPER MODELS ====================

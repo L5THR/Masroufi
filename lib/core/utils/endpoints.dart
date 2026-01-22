@@ -34,6 +34,18 @@ class ApiEndpoints {
   static String jobApplications(int jobId) => '$jobs/$jobId/applications';
   static String updateApplicationStatus(int applicationId) =>
       '$_api/applications/$applicationId/status';
+  static String applicationDetail(int applicationId) =>
+      '$_api/applications/$applicationId';
+
+  // Job Completion endpoints
+  static String startWork(int applicationId) =>
+      '$_api/applications/$applicationId/start';
+  static String requestCompletion(int applicationId) =>
+      '$_api/applications/$applicationId/request-completion';
+  static String confirmCompletion(int applicationId) =>
+      '$_api/applications/$applicationId/confirm-completion';
+  static String cancelCompletionRequest(int applicationId) =>
+      '$_api/applications/$applicationId/cancel-completion-request';
 
   // ==================== SAVED JOBS ====================
   static const String mySavedJobs = '$_api/job-seekers/me/saved-jobs';
@@ -44,6 +56,12 @@ class ApiEndpoints {
 
   // ==================== CATEGORIES ====================
   static const String categories = '$_api/categories';
+  static String categorySkills(int categoryId) => '$categories/$categoryId/skills';
+
+  // Admin Category Management
+  static const String adminCategories = '$_api/admin/categories';
+  static String adminUpdateCategory(int categoryId) => '$adminCategories/$categoryId';
+  static String adminDeleteCategory(int categoryId) => '$adminCategories/$categoryId';
 
   // ==================== FILE UPLOAD ====================
   static const String uploadFile = '$_api/files/upload';
@@ -55,8 +73,11 @@ class ApiEndpoints {
 
   // ==================== QUIZ ====================
   static const String quizzes = '$_api/quizzes';
+  static String getQuizById(int quizId) => '$quizzes/$quizId';
   static String submitQuiz(int quizId) => '$quizzes/$quizId/submit';
   static String quizAttempts(int quizId) => '$quizzes/$quizId/attempts';
+  static String updateQuiz(int quizId) => '$quizzes/$quizId';
+  static String deleteQuiz(int quizId) => '$quizzes/$quizId';
 
   // ==================== CHAT ====================
   static const String chatMessages = '$_api/chat/messages';
@@ -65,9 +86,17 @@ class ApiEndpoints {
 
   // ==================== REVIEWS ====================
   static const String reviews = '$_api/reviews';
+  static const String myReceivedReviews = '$_api/reviews/me/received';
+  static const String myGivenReviews = '$_api/reviews/me/given';
+  static String reviewById(int reviewId) => '$reviews/$reviewId';
+  static String userReviews(int userId) => '$reviews/user/$userId';
+  static String userRatingSummary(int userId) => '$reviews/user/$userId/summary';
+  static String reviewStatus(int applicationId) =>
+      '$reviews/application/$applicationId/status';
 
   // ==================== REPORTS ====================
   static const String reports = '$_api/reports';
+  static const String myReports = '$_api/reports/me';
 
   // ==================== ADMIN ====================
   static const String adminDashboard = '$_api/admin/dashboard';
@@ -80,4 +109,8 @@ class ApiEndpoints {
   static String deleteUser(int userId) => '$adminUsers/$userId';
   static String updateReportStatus(int reportId) =>
       '$adminReports/$reportId/status';
+
+  // Admin job management
+  static const String adminJobs = '$_api/admin/jobs';
+  static String adminDeleteJob(int jobId) => '$adminJobs/$jobId';
 }

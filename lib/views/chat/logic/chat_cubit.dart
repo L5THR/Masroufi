@@ -135,4 +135,33 @@ class ChatCubit extends Cubit<ChatState> {
   void clearChat() {
     emit(ChatInitial());
   }
+
+  // ==================== LOAD CONVERSATIONS ====================
+
+  /// Load all conversations (users you've chatted with)
+  Future<void> loadConversations({int page = 0}) async {
+    try {
+      emit(ChatLoading());
+
+      final conversations = await _repository.getConversations(
+        page: page,
+        size: 20,
+      );
+
+      emit(ConversationsLoaded(
+        conversations: conversations,
+        hasMore: conversations.length >= 20,
+      ));
+    } catch (e) {
+      print('❌ Error loading conversations: $e');
+      emit(ChatError(e.toString()));
+    }
+  }
+
+  // ==================== REFRESH CONVERSATIONS ====================
+
+  /// Refresh conversations list
+  Future<void> refreshConversations() async {
+    await loadConversations(page: 0);
+  }
 }

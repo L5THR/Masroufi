@@ -10,7 +10,8 @@ class CustomTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
   final int? maxLines;
-  final bool enabled; // Add this line
+  final bool enabled;
+  final void Function(String)? onChanged;
 
   const CustomTextField({
     Key? key,
@@ -22,18 +23,21 @@ class CustomTextField extends StatelessWidget {
     this.suffixIcon,
     this.validator,
     this.maxLines = 1,
-    this.enabled = true, // Add this line
+    this.enabled = true,
+    this.onChanged,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppTheme.textWhite,
+          style: TextStyle(
+            color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -45,8 +49,9 @@ class CustomTextField extends StatelessWidget {
           keyboardType: keyboardType,
           validator: validator,
           maxLines: maxLines,
-          enabled: enabled, // Add this line
-          style: const TextStyle(color: AppTheme.textWhite),
+          enabled: enabled,
+          onChanged: onChanged,
+          style: TextStyle(color: isDark ? AppTheme.textWhite : AppTheme.textBlack),
           decoration: InputDecoration(hintText: hint, suffixIcon: suffixIcon),
         ),
       ],

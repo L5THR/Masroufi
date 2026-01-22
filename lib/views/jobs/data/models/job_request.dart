@@ -24,17 +24,21 @@ class JobRequest {
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'title': title,
       'description': description,
-      'requirements': requirements,
-      'location': location,
-      'salary': salary,
-      'duration': duration,
       'categoryId': categoryId,
-      'requiresQuiz': requiresQuiz,
-      'imageUrl': imageUrl,
-      'skills': skills,
     };
+
+    // Only include non-null optional fields
+    if (requirements != null) map['requirements'] = requirements;
+    if (location != null) map['location'] = location;
+    if (salary != null) map['salary'] = salary;
+    if (duration != null) map['duration'] = duration;
+    if (requiresQuiz != null) map['requiresQuiz'] = requiresQuiz;
+    if (imageUrl != null) map['imageUrl'] = imageUrl;
+    if (skills != null && skills!.isNotEmpty) map['skills'] = skills;
+
+    return map;
   }
 }

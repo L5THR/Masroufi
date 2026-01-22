@@ -30,3 +30,25 @@ class RecruiterJobsFailure extends RecruiterJobsState {
   @override
   List<Object> get props => [error];
 }
+
+/// State emitted when a job is successfully deleted
+class JobDeleteSuccess extends RecruiterJobsState {
+  final int deletedJobId;
+  final PaginatedResponse<Job> remainingJobs;
+
+  const JobDeleteSuccess({required this.deletedJobId, required this.remainingJobs});
+
+  @override
+  List<Object> get props => [deletedJobId, remainingJobs];
+}
+
+/// State emitted when job deletion fails
+class JobDeleteFailure extends RecruiterJobsState {
+  final String error;
+  final PaginatedResponse<Job> jobs; // Original jobs list (unchanged)
+
+  const JobDeleteFailure({required this.error, required this.jobs});
+
+  @override
+  List<Object> get props => [error, jobs];
+}

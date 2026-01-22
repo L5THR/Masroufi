@@ -1,7 +1,5 @@
 // lib/views/recruiter/presentation/pages/recruiter_home_screen.dart
 
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_alinfo9/views/applications/data/models/job_application.dart';
 import 'package:flutter_alinfo9/views/recruiter/logic/recruiter_applicants_cubit.dart';
@@ -16,9 +14,14 @@ import '../../../../core/app_theme.dart';
 import '../../../../main.dart';
 import '../../../auth/logic/cubit/auth_cubit.dart';
 import '../../../quiz/presentation/pages/quiz_creation_screen.dart';
+import '../../../quiz/data/repositories/quiz_repository.dart';
 import '../../../notifications/logic/notification_cubit.dart';
 import '../../../notifications/logic/notification_state.dart';
 import '../../../notifications/presentation/widgets/notification_badge.dart';
+import '../../../chat/logic/chat_cubit.dart';
+import '../../../chat/data/repositories/chat_repository.dart';
+import '../../../chat/presentation/widgets/conversations_list.dart';
+import '../../../reports/presentation/pages/my_reports_screen.dart';
 
 class RecruiterHomeScreen extends StatefulWidget {
   const RecruiterHomeScreen({Key? key}) : super(key: key);
@@ -33,6 +36,7 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
   @override
   void initState() {
     super.initState();
+
     context.read<RecruiterJobsCubit>().getMyJobs();
     context.read<RecruiterApplicantsCubit>().getApplicantsForRecruiter();
     context.read<RecruiterProfileCubit>().getRecruiterProfile();
@@ -112,13 +116,7 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
             onPressed: () {
               context.read<RecruiterJobsCubit>().deleteJob(jobId);
               Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Job "$jobTitle" deleted successfully'),
-                  backgroundColor: AppTheme.successGreen,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              // Success/failure message will be shown by the BlocConsumer listener
             },
             child: const Text(
               'Delete',
@@ -168,39 +166,41 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
             ),
           ],
         ),
-      body: _buildBody(),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.pushNamed(context, '/create-job');
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Post Job'),
-              backgroundColor: AppTheme.accentBlue,
-            )
-          : null,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        backgroundColor: isDark
-            ? AppTheme.secondaryBlack
-            : AppTheme.secondaryWhite,
-        selectedItemColor: AppTheme.accentBlue,
-        unselectedItemColor: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'My Jobs'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Applicants',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble),
-            label: 'Messages',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
+        body: _buildBody(),
+        floatingActionButton: _selectedIndex == 0
+            ? FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/create-job');
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Post Job'),
+                backgroundColor: AppTheme.accentBlue,
+              )
+            : null,
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          backgroundColor: isDark
+              ? AppTheme.secondaryBlack
+              : AppTheme.secondaryWhite,
+          selectedItemColor: AppTheme.accentBlue,
+          unselectedItemColor: isDark
+              ? AppTheme.textGrey
+              : AppTheme.textDarkGrey,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.work), label: 'My Jobs'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people),
+              label: 'Applicants',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat_bubble),
+              label: 'Messages',
+            ),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ],
+        ),
       ),
     );
   }
@@ -221,17 +221,44 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
   }
 
   Widget _buildMyJobsTab() {
-    return BlocBuilder<RecruiterJobsCubit, RecruiterJobsState>(
+    return BlocConsumer<RecruiterJobsCubit, RecruiterJobsState>(
+      listener: (context, state) {
+        if (state is JobDeleteSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Job deleted successfully'),
+              backgroundColor: AppTheme.successGreen,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else if (state is JobDeleteFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete job: ${state.error}'),
+              backgroundColor: AppTheme.errorRed,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      },
       builder: (context, state) {
+        // Handle delete states - show jobs from the state
+        final jobs = state is JobDeleteSuccess
+            ? state.remainingJobs
+            : state is JobDeleteFailure
+                ? state.jobs
+                : state is RecruiterJobsLoaded
+                    ? state.jobs
+                    : null;
+
         if (state is RecruiterJobsLoading) {
           return const Center(child: CircularProgressIndicator());
         }
         if (state is RecruiterJobsFailure) {
-          log('Error loading jobs: ${state.error}');
           return Center(child: Text(state.error));
         }
-        if (state is RecruiterJobsLoaded) {
-          if (state.jobs.content.isEmpty) {
+        if (jobs != null) {
+          if (jobs.content.isEmpty) {
             return const Center(
               child: Text('You have not posted any jobs yet.'),
             );
@@ -243,14 +270,14 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _JobStatCard(jobs: state.jobs.content),
+                _JobStatCard(jobs: jobs.content),
                 const SizedBox(height: 20),
                 Text(
                   'Active Jobs',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
-                ...state.jobs.content.map(
+                ...jobs.content.map(
                   (job) => _RecruiterJobCard(
                     job: job,
                     onEdit: () async {
@@ -317,6 +344,7 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
                 final applicant = state.applicants[index];
                 return _ApplicantCard(
                   application: applicant,
+                  onTap: () => _showApplicantDetails(context, applicant),
                   onAccept: () {
                     context.read<RecruiterApplicantsCubit>().acceptApplicant(
                       applicant.id,
@@ -338,68 +366,129 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
   }
 
   Widget _buildMessagesTab() {
+    return BlocProvider(
+      create: (context) => ChatCubit(ChatRepository())..loadConversations(),
+      child: const ConversationsList(),
+    );
+  }
+
+  void _showApplicantDetails(BuildContext context, JobApplication application) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 3,
-      itemBuilder: (context, index) => GestureDetector(
-        onTap: () {
-          Navigator.pushNamed(context, '/chat');
-        },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
-            ),
-          ),
-          child: Row(
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark
+          ? AppTheme.secondaryBlack
+          : AppTheme.secondaryWhite,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bottomSheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: ListView(
+            controller: scrollController,
             children: [
-              CircleAvatar(
-                backgroundColor: isDark
-                    ? AppTheme.tertiaryGrey
-                    : AppTheme.lightGrey,
-                child: Icon(
-                  Icons.person,
-                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Jane Smith',
-                      style: TextStyle(
-                        color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+              // Header
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: isDark
+                        ? AppTheme.tertiaryGrey
+                        : AppTheme.lightGrey,
+                    child: Text(
+                      application.jobSeeker.firstName[0],
+                      style: const TextStyle(
+                        color: AppTheme.accentBlue,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Thank you for considering...',
-                      style: TextStyle(
-                        color: isDark
-                            ? AppTheme.textGrey
-                            : AppTheme.textDarkGrey,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          application.jobSeeker.fullName,
+                          style: TextStyle(
+                            color: isDark
+                                ? AppTheme.textWhite
+                                : AppTheme.textBlack,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          application.jobSeeker.phoneNumber ?? 'No phone',
+                          style: TextStyle(
+                            color: isDark
+                                ? AppTheme.textGrey
+                                : AppTheme.textDarkGrey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 24),
+
+              // Job Info
               Text(
-                '1h ago',
+                'Applied for',
+                style: TextStyle(
+                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                application.job.title,
                 style: TextStyle(
                   color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                  fontSize: 12,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Hint for messaging
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentBlue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.accentBlue.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      color: AppTheme.accentBlue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Use the Messages tab to chat with applicants',
+                        style: TextStyle(
+                          color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -487,6 +576,18 @@ class _RecruiterHomeScreenState extends State<RecruiterHomeScreen> {
                   title: 'Edit Profile',
                   onTap: () {
                     Navigator.pushNamed(context, '/edit-recruiter-profile');
+                  },
+                ),
+                _ProfileMenuItem(
+                  icon: Icons.flag_outlined,
+                  title: 'My Reports',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MyReportsScreen(),
+                      ),
+                    );
                   },
                 ),
                 _ProfileMenuItem(
@@ -755,13 +856,35 @@ class _RecruiterJobCard extends StatelessWidget {
           // Quiz Management Button (if quiz required)
           if (job.requiresQuiz) ...[
             OutlinedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => QuizCreationScreen(jobId: job.id),
-                  ),
-                );
+              onPressed: () async {
+                // Try to load existing quiz
+                try {
+                  final quizRepo = QuizRepository();
+                  final existingQuiz = await quizRepo.getQuizForJob(job.id);
+
+                  // Navigate to edit mode with existing quiz
+                  if (context.mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => QuizCreationScreen(
+                          jobId: job.id,
+                          existingQuiz: existingQuiz,
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  // No quiz exists yet, navigate to create mode
+                  if (context.mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => QuizCreationScreen(jobId: job.id),
+                      ),
+                    );
+                  }
+                }
               },
               icon: const Icon(Icons.quiz),
               label: const Text('Manage Quiz'),
@@ -809,131 +932,147 @@ class _ApplicantCard extends StatelessWidget {
   final JobApplication application;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
+  final VoidCallback? onTap;
 
   const _ApplicantCard({
     required this.application,
     this.onAccept,
     this.onReject,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: isDark
-                    ? AppTheme.tertiaryGrey
-                    : AppTheme.lightGrey,
-                child: Text(
-                  application.jobSeeker.firstName[0],
-                  style: TextStyle(
-                    color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${application.jobSeeker.firstName} ${application.jobSeeker.lastName}',
-                      style: TextStyle(
-                        color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      application.job.title,
-                      style: TextStyle(
-                        color: isDark
-                            ? AppTheme.textGrey
-                            : AppTheme.textDarkGrey,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Applied ${application.appliedAt.toString().substring(0, 10)}',
-            style: TextStyle(
-              color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-              fontSize: 12,
-            ),
-          ),
-          if (application.status.toApiString() != 'PENDING') ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: application.status == 'ACCEPTED'
-                    ? AppTheme.accentGreen.withOpacity(0.2)
-                    : AppTheme.errorRed.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                application.status.toApiString(),
-                style: TextStyle(
-                  color: application.status == 'ACCEPTED'
-                      ? AppTheme.accentGreen
-                      : AppTheme.errorRed,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onReject,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.errorRed),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    child: const Text(
-                      'Reject',
-                      style: TextStyle(color: AppTheme.errorRed),
+                CircleAvatar(
+                  backgroundColor: isDark
+                      ? AppTheme.tertiaryGrey
+                      : AppTheme.lightGrey,
+                  child: Text(
+                    application.jobSeeker.firstName[0],
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: onAccept,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    child: const Text('Accept'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${application.jobSeeker.firstName} ${application.jobSeeker.lastName}',
+                        style: TextStyle(
+                          color: isDark
+                              ? AppTheme.textWhite
+                              : AppTheme.textBlack,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        application.job.title,
+                        style: TextStyle(
+                          color: isDark
+                              ? AppTheme.textGrey
+                              : AppTheme.textDarkGrey,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Text(
+              'Applied ${application.appliedAt.toString().substring(0, 10)}',
+              style: TextStyle(
+                color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                fontSize: 12,
+              ),
+            ),
+            if (application.status.toApiString() != 'PENDING') ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: application.status == 'ACCEPTED'
+                      ? AppTheme.errorRed.withOpacity(0.2)
+                      : AppTheme.accentGreen.withOpacity(0.2),
+
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  application.status.toApiString(),
+                  style: TextStyle(
+                    color: application.status == 'ACCEPTED'
+                        ? AppTheme.errorRed.withOpacity(0.2)
+                        : const Color.fromARGB(
+                            255,
+                            81,
+                            241,
+                            201,
+                          ).withOpacity(0.2),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onReject,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.errorRed),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text(
+                        'Reject',
+                        style: TextStyle(color: AppTheme.errorRed),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onAccept,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text('Accept'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

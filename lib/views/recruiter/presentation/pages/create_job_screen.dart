@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_alinfo9/core/app_theme.dart';
 import 'package:flutter_alinfo9/views/jobs/data/models/category.dart';
+import 'package:flutter_alinfo9/views/jobs/data/models/pending_job_data.dart';
 import 'package:flutter_alinfo9/views/jobs/data/models/job_request.dart';
 import 'package:flutter_alinfo9/views/jobs/data/repositories/job_repository.dart';
+import 'package:flutter_alinfo9/views/quiz/presentation/pages/quiz_creation_screen.dart';
 import 'package:flutter_alinfo9/views/recruiter/logic/create_job_cubit.dart';
 import 'package:flutter_alinfo9/views/recruiter/logic/create_job_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -30,7 +32,6 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
   int? _selectedCategoryId;
   List<Category> _categories = [];
 
-  // Skills selection
   final List<String> _availableSkills = [
     'Flutter',
     'Dart',
@@ -51,14 +52,11 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
   Future<void> _fetchCategories() async {
     try {
-      print('📂 Fetching categories...');
       final categoriesResponse = await JobRepository().getCategories();
-      print('✅ Categories loaded: ${categoriesResponse.content.length} items');
       setState(() {
         _categories = categoriesResponse.content;
       });
     } catch (e) {
-      print('❌ Failed to load categories: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -81,38 +79,69 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
   }
 
   void _submitForm() {
-    print('🔵 Submit form called');
-    if (_formKey.currentState!.validate()) {
-      print('🟢 Form validation passed');
-      if (_selectedCategoryId == null) {
-        print('🔴 No category selected');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a category.'),
-            backgroundColor: AppTheme.errorRed,
-          ),
-        );
-        return;
-      }
-
-      print('🟢 Category selected: $_selectedCategoryId');
-      final jobRequest = JobRequest(
-        title: _titleController.text,
-        description: _descriptionController.text,
-        salary: double.tryParse(_salaryController.text),
-        duration: _durationController.text,
-        location: _locationController.text,
-        categoryId: _selectedCategoryId!,
-        requiresQuiz: _requiresQuiz,
-        skills: _selectedSkills,
-        imageUrl: null, // Will be set by the cubit after upload
-      );
-
-      print('🟢 Calling createJob with: ${jobRequest.toJson()}');
-      context.read<CreateJobCubit>().createJob(jobRequest, imageFile: _jobImage);
-    } else {
-      print('🔴 Form validation failed');
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) {
+      return;
     }
+
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a category.'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+      return;
+    }
+
+    if (_requiresQuiz) {
+      // NEW FLOW: Navigate to quiz creation with pending job data
+      // Job will be created together with the quiz
+      _navigateToQuizCreation();
+    } else {
+      // OLD FLOW: Create job directly (no quiz required)
+      _createJobDirectly();
+    }
+  }
+
+  void _navigateToQuizCreation() {
+    final pendingJobData = PendingJobData(
+      title: _titleController.text,
+      description: _descriptionController.text,
+      salary: double.tryParse(_salaryController.text),
+      duration: _durationController.text.isNotEmpty ? _durationController.text : null,
+      location: _locationController.text.isNotEmpty ? _locationController.text : null,
+      categoryId: _selectedCategoryId!,
+      requiresQuiz: true,
+      skills: _selectedSkills.isNotEmpty ? _selectedSkills : null,
+      imageFile: _jobImage,
+    );
+
+    // Navigate to quiz creation screen with pending job data
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizCreationScreen(
+          pendingJobData: pendingJobData,
+        ),
+      ),
+    );
+  }
+
+  void _createJobDirectly() {
+    final jobRequest = JobRequest(
+      title: _titleController.text,
+      description: _descriptionController.text,
+      salary: double.tryParse(_salaryController.text),
+      duration: _durationController.text.isNotEmpty ? _durationController.text : null,
+      location: _locationController.text.isNotEmpty ? _locationController.text : null,
+      categoryId: _selectedCategoryId!,
+      requiresQuiz: false,
+      skills: _selectedSkills.isNotEmpty ? _selectedSkills : null,
+      imageUrl: null,
+    );
+
+    context.read<CreateJobCubit>().createJob(jobRequest, imageFile: _jobImage);
   }
 
   @override
@@ -122,6 +151,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       body: BlocConsumer<CreateJobCubit, CreateJobState>(
         listener: (context, state) {
           if (state is CreateJobSuccess) {
+            // This only happens for jobs WITHOUT quiz (direct creation)
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Job posted successfully!'),
@@ -162,10 +192,8 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                         controller: _titleController,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            print('❌ Validation failed: Job title is empty');
                             return 'Please enter a job title';
                           }
-                          print('✅ Job title is valid: $value');
                           return null;
                         },
                       ),
@@ -177,10 +205,8 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                         maxLines: 5,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            print('❌ Validation failed: Description is empty');
                             return 'Please enter a description';
                           }
-                          print('✅ Description is valid');
                           return null;
                         },
                       ),
@@ -234,18 +260,16 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                                 color: Theme.of(context).dividerColor, width: 2),
                           ),
                           child: _jobImage != null
-                              ? Image.file(_jobImage!, fit: BoxFit.cover)
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(_jobImage!, fit: BoxFit.cover),
+                                )
                               : const Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.add_a_photo_outlined,
-                                      size: 40,
-                                    ),
+                                    Icon(Icons.add_a_photo_outlined, size: 40),
                                     SizedBox(height: 8),
-                                    Text(
-                                      'Upload a picture of the job',
-                                    ),
+                                    Text('Upload a picture of the job'),
                                   ],
                                 ),
                         ),
@@ -301,17 +325,14 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                                   SizedBox(height: 4),
                                   Text(
                                     'Applicants must pass a quiz to apply',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                    ),
+                                    style: TextStyle(fontSize: 12),
                                   ),
                                 ],
                               ),
                             ),
                             Switch(
                               value: _requiresQuiz,
-                              onChanged: (value) =>
-                                  setState(() => _requiresQuiz = value),
+                              onChanged: (value) => setState(() => _requiresQuiz = value),
                               activeColor: AppTheme.accentBlue,
                             ),
                           ],
@@ -319,9 +340,18 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                       ),
                       const SizedBox(height: 32),
                       CustomButton(
-                        text: 'Post Job',
+                        text: _requiresQuiz ? 'Next: Create Quiz' : 'Post Job',
                         onPressed: _submitForm,
                       ),
+                      if (_requiresQuiz)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Job and quiz will be created together in the next step',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -330,9 +360,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
               if (isLoading)
                 Container(
                   color: Colors.black.withOpacity(0.5),
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
             ],
           );

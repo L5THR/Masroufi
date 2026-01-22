@@ -56,6 +56,19 @@ class ChatMessageSent extends ChatState {
   List<Object?> get props => [message];
 }
 
+class ConversationsLoaded extends ChatState {
+  final List<ChatMessage> conversations; // Latest message from each conversation
+  final bool hasMore;
+
+  ConversationsLoaded({
+    required this.conversations,
+    this.hasMore = false,
+  });
+
+  @override
+  List<Object?> get props => [conversations, hasMore];
+}
+
 // ==================== ERROR STATES ====================
 
 class ChatError extends ChatState {

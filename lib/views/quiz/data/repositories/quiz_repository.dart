@@ -5,7 +5,6 @@ import 'package:flutter_alinfo9/core/network/dio_client.dart';
 import 'package:flutter_alinfo9/core/network/dio_exceptions.dart';
 import 'package:flutter_alinfo9/core/utils/endpoints.dart';
 import '../models/quiz.dart';
-import '../models/quiz_attempt.dart';
 
 class QuizRepository {
   final Dio _dio = DioClient.instance.dio;
@@ -16,14 +15,22 @@ class QuizRepository {
   /// GET /api/jobs/{jobId}/quiz
   Future<Quiz> getQuizForJob(int jobId) async {
     try {
-      print('📡 Getting quiz for job ID: $jobId');
-
       final response = await _dio.get(ApiEndpoints.jobQuiz(jobId));
-
-      print('✅ Quiz loaded successfully');
       return Quiz.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ Error loading quiz: ${e.message}');
+      print('❌ Error loading quiz for job $jobId: ${e.message}');
+      throw AppDioException.fromDioError(e);
+    }
+  }
+
+  /// Get quiz by ID
+  /// GET /api/quizzes/{quizId}
+  Future<Quiz> getQuizById(int quizId) async {
+    try {
+      final response = await _dio.get(ApiEndpoints.getQuizById(quizId));
+      return Quiz.fromJson(response.data);
+    } on DioException catch (e) {
+      print('❌ Error loading quiz $quizId: ${e.message}');
       throw AppDioException.fromDioError(e);
     }
   }
@@ -35,9 +42,6 @@ class QuizRepository {
     required List<int> selectedOptionIds,
   }) async {
     try {
-      print('📡 Submitting quiz ID: $quizId');
-      print('📡 Selected options: $selectedOptionIds');
-
       final request = QuizSubmitRequest(answers: selectedOptionIds);
 
       final response = await _dio.post(
@@ -45,13 +49,9 @@ class QuizRepository {
         data: request.toJson(),
       );
 
-      print('✅ Quiz submitted successfully');
-      print('✅ Response: ${response.data}');
-
       return QuizAttempt.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ Error submitting quiz: ${e.message}');
-      print('❌ Response: ${e.response?.data}');
+      print('❌ Error submitting quiz $quizId: ${e.message}');
       throw AppDioException.fromDioError(e);
     }
   }
@@ -64,8 +64,6 @@ class QuizRepository {
     int size = 20,
   }) async {
     try {
-      print('📡 Getting quiz attempts for quiz ID: $quizId');
-
       final response = await _dio.get(
         ApiEndpoints.quizAttempts(quizId),
         queryParameters: {
@@ -73,8 +71,6 @@ class QuizRepository {
           'size': size,
         },
       );
-
-      print('✅ Quiz attempts loaded');
 
       final content = response.data['content'] as List?;
       if (content == null) {
@@ -98,10 +94,6 @@ class QuizRepository {
     required List<QuestionDto> questions,
   }) async {
     try {
-      print('📡 Creating quiz for job ID: $jobId');
-      print('📡 Quiz title: $title');
-      print('📡 Number of questions: ${questions.length}');
-
       final request = QuizCreateRequest(
         jobId: jobId,
         title: title,
@@ -113,50 +105,55 @@ class QuizRepository {
         data: request.toJson(),
       );
 
-      print('✅ Quiz created successfully');
-      print('✅ Quiz ID: ${response.data['id']}');
-
       return Quiz.fromJson(response.data);
     } on DioException catch (e) {
       print('❌ Error creating quiz: ${e.message}');
-      print('❌ Response: ${e.response?.data}');
+
+      // Check if it's a duplicate quiz error
+      if (e.response?.statusCode == 400 || e.response?.statusCode == 409) {
+        final data = e.response?.data;
+        if (data != null && data.toString().contains('already')) {
+          throw Exception('This job already has a quiz');
+        }
+      }
+
       throw AppDioException.fromDioError(e);
     }
   }
 
-  // ==================== ERROR HANDLING ====================
+  /// Update an existing quiz
+  /// PUT /api/quizzes/{quizId}
+  Future<Quiz> updateQuiz({
+    required int quizId,
+    required String title,
+    required List<QuestionDto> questions,
+  }) async {
+    try {
+      final request = QuizUpdateRequest(
+        title: title,
+        questions: questions,
+      );
 
-  String _handleError(DioException error) {
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      final data = error.response!.data;
+      final response = await _dio.put(
+        ApiEndpoints.updateQuiz(quizId),
+        data: request.toJson(),
+      );
 
-      switch (statusCode) {
-        case 400:
-          if (data is Map && data.containsKey('message')) {
-            return data['message'];
-          }
-          return 'Invalid quiz data. Please check your inputs.';
-        case 401:
-          return 'Please login to access quizzes.';
-        case 403:
-          return 'You don\'t have permission to perform this action.';
-        case 404:
-          return 'Quiz not found. It may have been deleted.';
-        case 409:
-          return 'You have already submitted this quiz.';
-        case 500:
-          return 'Server error. Please try again later.';
-        default:
-          return 'An error occurred. Please try again.';
-      }
-    } else if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout) {
-      return 'Connection timeout. Please check your internet.';
-    } else if (error.type == DioExceptionType.connectionError) {
-      return 'Cannot connect to server. Please check your connection.';
+      return Quiz.fromJson(response.data);
+    } on DioException catch (e) {
+      print('❌ Error updating quiz $quizId: ${e.message}');
+      throw AppDioException.fromDioError(e);
     }
+  }
 
-    return 'An unexpected error occurred: ${error.message}';
+  /// Delete a quiz
+  /// DELETE /api/quizzes/{quizId}
+  Future<void> deleteQuiz(int quizId) async {
+    try {
+      await _dio.delete(ApiEndpoints.deleteQuiz(quizId));
+    } on DioException catch (e) {
+      print('❌ Error deleting quiz $quizId: ${e.message}');
+      throw AppDioException.fromDioError(e);
+    }
   }
 }

@@ -54,7 +54,6 @@ class _EditJobSeekerProfileViewState
 
   Future<void> _pickProfileImage() async {
     try {
-      print('📸 Opening image picker for profile picture');
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
@@ -63,10 +62,8 @@ class _EditJobSeekerProfileViewState
         setState(() {
           _profileImage = File(image.path);
         });
-        print('✅ Profile image selected: ${image.path}');
       }
     } catch (e) {
-      print('❌ Error picking image: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -79,7 +76,6 @@ class _EditJobSeekerProfileViewState
 
   Future<void> _pickCVFile() async {
     try {
-      print('📄 Opening file picker for CV');
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx'],
@@ -89,7 +85,6 @@ class _EditJobSeekerProfileViewState
         setState(() {
           _cvFile = File(result.files.single.path!);
         });
-        print('✅ CV file selected: ${result.files.single.name}');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -99,7 +94,6 @@ class _EditJobSeekerProfileViewState
         );
       }
     } catch (e) {
-      print('❌ Error picking CV file: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -111,13 +105,9 @@ class _EditJobSeekerProfileViewState
   }
 
   Future<void> _updateProfile() async {
-    print('🔵 Update profile button clicked');
     if (!_formKey.currentState!.validate()) {
-      print('❌ Form validation failed');
       return;
     }
-
-    print('✅ Form validation passed');
 
     setState(() {
       _isUpdating = true;
@@ -129,11 +119,8 @@ class _EditJobSeekerProfileViewState
     String? profilePictureUrl;
     if (_profileImage != null) {
       try {
-        print('📤 Uploading profile picture...');
         profilePictureUrl = await uploadRepo.uploadFile(_profileImage!);
-        print('✅ Profile picture uploaded: $profilePictureUrl');
       } catch (e) {
-        print('❌ Failed to upload profile picture: $e');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -149,11 +136,8 @@ class _EditJobSeekerProfileViewState
     String? cvUrl;
     if (_cvFile != null) {
       try {
-        print('📤 Uploading CV...');
         cvUrl = await uploadRepo.uploadFile(_cvFile!);
-        print('✅ CV uploaded: $cvUrl');
       } catch (e) {
-        print('❌ Failed to upload CV: $e');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -165,7 +149,6 @@ class _EditJobSeekerProfileViewState
       }
     }
 
-    print('🔵 Calling updateJobSeekerProfile...');
     await context.read<UserCubit>().updateJobSeekerProfile(
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
@@ -188,16 +171,14 @@ class _EditJobSeekerProfileViewState
       body: BlocConsumer<UserCubit, UserState>(
         listener: (context, state) {
           if (state is UserLoaded && _isUpdating) {
-            print('✅ Profile updated successfully');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('✅ Profile updated successfully!'),
+                content: Text('Profile updated successfully!'),
                 backgroundColor: AppTheme.successGreen,
               ),
             );
             Navigator.pop(context, true); // Return true to indicate success
           } else if (state is UserError) {
-            print('❌ Profile update failed: ${state.message}');
             setState(() {
               _isUpdating = false;
             });
@@ -218,7 +199,6 @@ class _EditJobSeekerProfileViewState
               _lastNameController.text = profile.lastName;
               _phoneController.text = profile.phoneNumber ?? '';
               _isInitialized = true;
-              print('✅ Form initialized with user data');
             }
           }
 

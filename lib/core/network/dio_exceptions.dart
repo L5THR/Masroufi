@@ -96,6 +96,10 @@ class AppDioException implements Exception {
 
       case 500:
         isRetryable = true;
+        // Include backend message for debugging (e.g., constraint violations)
+        if (backendMessage != null && backendMessage.isNotEmpty) {
+          return 'Server error: $backendMessage';
+        }
         return 'Server error. Our team has been notified. Please try again later.';
 
       case 502:

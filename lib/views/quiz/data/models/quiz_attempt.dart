@@ -48,12 +48,14 @@ class QuizAttempt {
 
 class JobSeekerProfile {
   final int id;
+  final int? userId; // Direct userId from backend DTO
   final String? fullName;
   final String? email;
   final String? phoneNumber;
 
   JobSeekerProfile({
     required this.id,
+    this.userId,
     this.fullName,
     this.email,
     this.phoneNumber,
@@ -62,6 +64,7 @@ class JobSeekerProfile {
   factory JobSeekerProfile.fromJson(Map<String, dynamic> json) {
     return JobSeekerProfile(
       id: json['id'],
+      userId: json['userId'] as int?,
       fullName: json['fullName'],
       email: json['email'],
       phoneNumber: json['phoneNumber'],
@@ -71,6 +74,7 @@ class JobSeekerProfile {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (userId != null) 'userId': userId,
       if (fullName != null) 'fullName': fullName,
       if (email != null) 'email': email,
       if (phoneNumber != null) 'phoneNumber': phoneNumber,

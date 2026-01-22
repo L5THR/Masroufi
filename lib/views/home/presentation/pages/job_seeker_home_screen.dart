@@ -16,10 +16,13 @@ import '../../../applications/logic/application_state.dart';
 import '../../../applications/presentation/widgets/application_card.dart';
 import '../../../auth/logic/cubit/user_cubit.dart';
 import '../../../auth/logic/cubit/user_state.dart';
-import '../../../auth/data/repositories/user_repository.dart';
 import '../../../notifications/logic/notification_cubit.dart';
 import '../../../notifications/logic/notification_state.dart';
 import '../../../notifications/presentation/widgets/notification_badge.dart';
+import '../../../chat/logic/chat_cubit.dart';
+import '../../../chat/data/repositories/chat_repository.dart';
+import '../../../chat/presentation/widgets/conversations_list.dart';
+import '../../../reports/presentation/pages/my_reports_screen.dart';
 
 class JobSeekerHomeScreen extends StatefulWidget {
   const JobSeekerHomeScreen({super.key});
@@ -44,6 +47,8 @@ class _JobSeekerHomeScreenState extends State<JobSeekerHomeScreen> {
     final authState = context.read<AuthCubit>().state;
     if (authState.isAuthenticated) {
       context.read<UserCubit>().fetchMe();
+      // Load applications to filter out already-applied jobs
+      context.read<ApplicationCubit>().getMyApplications();
     }
   }
 
@@ -310,153 +315,172 @@ class _JobSeekerHomeScreenState extends State<JobSeekerHomeScreen> {
               ),
             ),
 
-            // Jobs List
-            BlocBuilder<JobCubit, JobState>(
-              builder: (context, state) {
-                if (state is JobLoading) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
+            // Jobs List - Filter out applied jobs
+            BlocBuilder<ApplicationCubit, ApplicationState>(
+              builder: (context, appState) {
+                // Get list of applied job IDs
+                final Set<int> appliedJobIds = {};
+                if (appState is ApplicationsLoaded) {
+                  for (final app in appState.applications) {
+                    appliedJobIds.add(app.job.id);
+                  }
                 }
 
-                if (state is JobError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 64,
-                            color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Failed to load jobs',
-                            style: TextStyle(
-                              color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            state.message,
-                            style: TextStyle(
-                              color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              context.read<JobCubit>().getJobs(
-                                categoryId: _selectedCategoryId,
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.accentBlue,
-                            ),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
+                return BlocBuilder<JobCubit, JobState>(
+                  builder: (context, state) {
+                    if (state is JobLoading) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
 
-                // Handle both JobsLoaded and CategoriesLoaded (which now includes jobs)
-                PaginatedResponse<Job>? jobsData;
-                if (state is JobsLoaded) {
-                  jobsData = state.jobs;
-                } else if (state is CategoriesLoaded && state.jobs != null) {
-                  jobsData = state.jobs;
-                }
-
-                if (jobsData != null) {
-                  final jobs = jobsData.content;
-
-                  if (jobs.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32.0),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.work_off_outlined,
-                              size: 64,
-                              color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No jobs found',
-                              style: TextStyle(
-                                color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _searchController.text.isNotEmpty
-                                  ? 'Try a different search term'
-                                  : 'Check back later for new opportunities!',
-                              style: TextStyle(
+                    if (state is JobError) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 64,
                                 color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'Failed to load jobs',
+                                style: TextStyle(
+                                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                state.message,
+                                style: TextStyle(
+                                  color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () {
+                                  context.read<JobCubit>().getJobs(
+                                    categoryId: _selectedCategoryId,
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.accentBlue,
+                                ),
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }
+                      );
+                    }
 
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: jobs.length,
-                    itemBuilder: (context, index) {
-                      final job = jobs[index];
-                      return _JobCard(
-                        job: job,
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/job-details',
-                            arguments: {
-                              'isRecruiter': false,
-                              'jobId': job.id,
-                            },
-                          );
-                        },
-                        onBookmark: () {
-                          if (!AuthGuard.requireAuth(
-                            context,
-                            title: 'Login to Save Jobs',
-                            message: 'Create an account or login to save jobs for later.',
-                          )) {
-                            return;
-                          }
+                    // Handle both JobsLoaded and CategoriesLoaded (which now includes jobs)
+                    PaginatedResponse<Job>? jobsData;
+                    if (state is JobsLoaded) {
+                      jobsData = state.jobs;
+                    } else if (state is CategoriesLoaded && state.jobs != null) {
+                      jobsData = state.jobs;
+                    }
 
-                          // TODO: Implement save job functionality
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Job saved!'),
-                              backgroundColor: AppTheme.successGreen,
-                              duration: Duration(seconds: 1),
+                    if (jobsData != null) {
+                      // Filter out jobs the user has already applied to
+                      final jobs = jobsData.content
+                          .where((job) => !appliedJobIds.contains(job.id))
+                          .toList();
+
+                      if (jobs.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.work_off_outlined,
+                                  size: 64,
+                                  color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  appliedJobIds.isNotEmpty
+                                      ? 'No new jobs found'
+                                      : 'No jobs found',
+                                  style: TextStyle(
+                                    color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _searchController.text.isNotEmpty
+                                      ? 'Try a different search term'
+                                      : appliedJobIds.isNotEmpty
+                                          ? 'You\'ve applied to all available jobs!'
+                                          : 'Check back later for new opportunities!',
+                                  style: TextStyle(
+                                    color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16),
+                        itemCount: jobs.length,
+                        itemBuilder: (context, index) {
+                          final job = jobs[index];
+                          return _JobCard(
+                            job: job,
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/job-details',
+                                arguments: {
+                                  'isRecruiter': false,
+                                  'jobId': job.id,
+                                },
+                              );
+                            },
+                            onBookmark: () {
+                              if (!AuthGuard.requireAuth(
+                                context,
+                                title: 'Login to Save Jobs',
+                                message: 'Create an account or login to save jobs for later.',
+                              )) {
+                                return;
+                              }
+
+                              // TODO: Implement save job functionality
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Job saved!'),
+                                  backgroundColor: AppTheme.successGreen,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
                           );
                         },
                       );
-                    },
-                  );
-                }
+                    }
 
-                return const SizedBox.shrink();
+                    return const SizedBox.shrink();
+                  },
+                );
               },
             ),
           ],
@@ -468,54 +492,57 @@ class _JobSeekerHomeScreenState extends State<JobSeekerHomeScreen> {
   Widget _buildSavedJobsTab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Check if user is authenticated
-    final authState = context.read<AuthCubit>().state;
-    if (!authState.isAuthenticated) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.description_outlined,
-                size: 64,
-                color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Login to View Applications',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Create an account or login to track your job applications.',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/role-selection');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentBlue,
-                ),
-                child: const Text('Login / Sign Up'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    // Use BlocBuilder to reactively check auth state
+    return BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, authState) {
 
-    return BlocBuilder<ApplicationCubit, ApplicationState>(
+        // Check if user is authenticated
+        if (!authState.isAuthenticated) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: 64,
+                    color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Login to View Applications',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create an account or login to track your job applications.',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/role-selection');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentBlue,
+                    ),
+                    child: const Text('Login / Sign Up'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return BlocBuilder<ApplicationCubit, ApplicationState>(
       builder: (context, state) {
         if (state is ApplicationInitial) {
           context.read<ApplicationCubit>().getMyApplications();
@@ -643,6 +670,7 @@ class _JobSeekerHomeScreenState extends State<JobSeekerHomeScreen> {
                       },
                     );
                   },
+                  // Chat removed - access via dedicated Messages tab for better UX
                 );
               },
             ),
@@ -652,42 +680,14 @@ class _JobSeekerHomeScreenState extends State<JobSeekerHomeScreen> {
         return const SizedBox.shrink();
       },
     );
+      },
+    );
   }
 
   Widget _buildMessagesTab() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 64,
-              color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Messages Coming Soon!',
-              style: TextStyle(
-                color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Chat with recruiters after your application is accepted',
-              style: TextStyle(
-                color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return BlocProvider(
+      create: (context) => ChatCubit(ChatRepository())..loadConversations(),
+      child: const ConversationsList(),
     );
   }
 
@@ -769,6 +769,19 @@ class _JobSeekerHomeScreenState extends State<JobSeekerHomeScreen> {
                   Navigator.pushNamed(context, '/my-applications');
                 },
               ),
+              if (authState.isAuthenticated)
+                _ProfileMenuItem(
+                  icon: Icons.flag_outlined,
+                  title: 'My Reports',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MyReportsScreen(),
+                      ),
+                    );
+                  },
+                ),
               _ProfileMenuItem(
                 icon: Icons.settings,
                 title: 'Settings',

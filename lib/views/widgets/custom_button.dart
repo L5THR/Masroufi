@@ -3,7 +3,7 @@ import 'package:flutter_alinfo9/core/app_theme.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool isOutlined;
   final bool isLoading;
   final Color? color;
@@ -11,22 +11,30 @@ class CustomButton extends StatelessWidget {
   const CustomButton({
     Key? key,
     required this.text,
-    required this.onPressed,
+    this.onPressed,
     this.isOutlined = false,
     this.isLoading = false,
     this.color,
   }) : super(key: key);
 
+  bool get _isDisabled => onPressed == null;
+
   @override
   Widget build(BuildContext context) {
+    final effectiveOnPressed = isLoading || _isDisabled ? null : onPressed;
+    final buttonColor = color ?? AppTheme.accentBlue;
+
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: isOutlined
           ? OutlinedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: effectiveOnPressed,
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: color ?? AppTheme.accentBlue, width: 2),
+                side: BorderSide(
+                  color: _isDisabled ? AppTheme.textGrey : buttonColor,
+                  width: 2,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -40,16 +48,16 @@ class CustomButton extends StatelessWidget {
                   : Text(
                       text,
                       style: TextStyle(
-                        color: color ?? AppTheme.accentBlue,
+                        color: _isDisabled ? AppTheme.textGrey : buttonColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
             )
           : ElevatedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: effectiveOnPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: color ?? AppTheme.accentBlue,
+                backgroundColor: _isDisabled ? AppTheme.textGrey : buttonColor,
               ),
               child: isLoading
                   ? const SizedBox(

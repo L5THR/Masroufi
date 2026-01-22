@@ -34,13 +34,13 @@ class AdminUsersLoaded extends AdminUsersState {
 
   @override
   List<Object?> get props => [
-        users,
-        totalPages,
-        totalElements,
-        currentPage,
-        isLoadingMore,
-        searchQuery,
-      ];
+    users,
+    totalPages,
+    totalElements,
+    currentPage,
+    isLoadingMore,
+    searchQuery,
+  ];
 
   AdminUsersLoaded copyWith({
     List<UserAccount>? users,
@@ -84,8 +84,8 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
   final AdminRepository _repository;
 
   AdminUsersCubit({required AdminRepository repository})
-      : _repository = repository,
-        super(AdminUsersInitial());
+    : _repository = repository,
+      super(AdminUsersInitial());
 
   /// Load users list
   Future<void> loadUsers({int page = 0, int size = 20}) async {
@@ -93,12 +93,14 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     try {
       final result = await _repository.getUsers(page: page, size: size);
 
-      emit(AdminUsersLoaded(
-        users: result['users'] as List<UserAccount>,
-        totalPages: result['totalPages'] as int,
-        totalElements: result['totalElements'] as int,
-        currentPage: result['currentPage'] as int,
-      ));
+      emit(
+        AdminUsersLoaded(
+          users: result['users'] as List<UserAccount>,
+          totalPages: result['totalPages'] as int,
+          totalElements: result['totalElements'] as int,
+          currentPage: result['currentPage'] as int,
+        ),
+      );
     } catch (e) {
       emit(AdminUsersError(e.toString()));
     }
@@ -121,13 +123,12 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     }
 
     final filtered = currentState.users
-        .where((user) => user.email.toLowerCase().contains(query.toLowerCase()))
+        .where(
+          (user) => user.email!.toLowerCase().contains(query.toLowerCase()),
+        )
         .toList();
 
-    emit(currentState.copyWith(
-      users: filtered,
-      searchQuery: query,
-    ));
+    emit(currentState.copyWith(users: filtered, searchQuery: query));
   }
 
   /// Load more users (pagination)
@@ -145,11 +146,13 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
 
       final newUsers = result['users'] as List<UserAccount>;
 
-      emit(currentState.copyWith(
-        users: [...currentState.users, ...newUsers],
-        currentPage: nextPage,
-        isLoadingMore: false,
-      ));
+      emit(
+        currentState.copyWith(
+          users: [...currentState.users, ...newUsers],
+          currentPage: nextPage,
+          isLoadingMore: false,
+        ),
+      );
     } catch (e) {
       emit(currentState.copyWith(isLoadingMore: false));
       // Error loading more, but keep current state

@@ -29,7 +29,6 @@ class NotificationCubit extends Cubit<NotificationState> {
         hasMore: notifications.length >= 20,
       ));
     } catch (e) {
-      print('❌ Error loading notifications: $e');
       emit(NotificationError(e.toString()));
     }
   }
@@ -74,8 +73,6 @@ class NotificationCubit extends Cubit<NotificationState> {
         unreadCount: unreadCount,
       ));
     } catch (e) {
-      print('❌ Error marking notification as read: $e');
-
       // Preserve current notifications on error
       List<Notification> currentNotifications = [];
       if (state is NotificationLoaded) {
@@ -115,7 +112,6 @@ class NotificationCubit extends Cubit<NotificationState> {
       // Reload notifications
       await loadNotifications();
     } catch (e) {
-      print('❌ Error marking all as read: $e');
       emit(NotificationError(e.toString()));
     }
   }
@@ -147,7 +143,6 @@ class NotificationCubit extends Cubit<NotificationState> {
         hasMore: moreNotifications.length >= 20,
       ));
     } catch (e) {
-      print('❌ Error loading more notifications: $e');
       // Keep current state on error
     }
   }
@@ -166,7 +161,6 @@ class NotificationCubit extends Cubit<NotificationState> {
     try {
       return await _repository.getUnreadCount();
     } catch (e) {
-      print('❌ Error getting unread count: $e');
       return 0;
     }
   }

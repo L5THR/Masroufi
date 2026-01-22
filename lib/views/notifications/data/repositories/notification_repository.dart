@@ -15,9 +15,6 @@ class NotificationRepository {
     int size = 20,
   }) async {
     try {
-      print('📡 Getting notifications...');
-      print('📡 Page: $page, Size: $size');
-
       final response = await _dioClient.get(
         ApiEndpoints.notifications,
         queryParameters: {
@@ -27,12 +24,9 @@ class NotificationRepository {
         },
       );
 
-      print('✅ Notifications retrieved successfully');
       final content = response.data['content'] as List;
       return content.map((json) => Notification.fromJson(json)).toList();
     } on DioException catch (e) {
-      print('❌ Failed to get notifications: ${e.response?.statusCode}');
-      print('❌ Error: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -43,16 +37,12 @@ class NotificationRepository {
   /// PUT /api/notifications/{notificationId}/read
   Future<Notification> markAsRead(int notificationId) async {
     try {
-      print('📡 Marking notification $notificationId as read...');
-
       final response = await _dioClient.put(
         ApiEndpoints.markNotificationRead(notificationId),
       );
 
-      print('✅ Notification marked as read');
       return Notification.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ Failed to mark notification as read: ${e.response?.statusCode}');
       throw _handleError(e);
     }
   }
@@ -69,7 +59,6 @@ class NotificationRepository {
       // Count unread notifications
       return notifications.where((n) => !n.read).length;
     } catch (e) {
-      print('❌ Failed to get unread count: $e');
       return 0; // Return 0 on error instead of throwing
     }
   }

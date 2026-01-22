@@ -5,8 +5,7 @@ import 'package:flutter_alinfo9/core/network/dio_client.dart';
 import 'package:flutter_alinfo9/core/utils/endpoints.dart';
 import 'package:flutter_alinfo9/views/applications/data/models/application_status.dart';
 import 'package:flutter_alinfo9/views/applications/data/models/job_application.dart';
-
-import 'package:flutter_alinfo9/views/jobs/data/models/job.dart';
+import 'package:flutter_alinfo9/views/applications/data/models/application_detail.dart';
 import 'package:flutter_alinfo9/views/jobs/data/repositories/job_repository.dart';
 
 class ApplicationRepository {
@@ -20,17 +19,9 @@ class ApplicationRepository {
   /// POST /api/jobs/{jobId}/apply
   Future<JobApplication> applyToJob(int jobId) async {
     try {
-      print('📡 Applying to job ID: $jobId');
-      print('📡 Endpoint: ${ApiEndpoints.applyToJob(jobId)}');
-      print('📡 Headers: ${_dioClient.options.headers}');
-
       final response = await _dioClient.post(ApiEndpoints.applyToJob(jobId));
-
-      print('✅ Application successful! Response: ${response.data}');
       return JobApplication.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ Application failed: ${e.response?.statusCode} - ${e.message}');
-      print('❌ Response data: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -42,10 +33,6 @@ class ApplicationRepository {
     int size = 20,
   }) async {
     try {
-      print('📡 Getting my applications...');
-      print('📡 Endpoint: ${ApiEndpoints.myApplications}');
-      print('📡 Query params: page=$page, size=$size');
-
       final response = await _dioClient.get(
         ApiEndpoints.myApplications,
         queryParameters: {
@@ -55,20 +42,10 @@ class ApplicationRepository {
         },
       );
 
-      print('✅ Response status: ${response.statusCode}');
-      print('✅ Response data: ${response.data}');
-
       final content = response.data['content'] as List;
-      print('✅ Found ${content.length} applications');
       return content.map((json) => JobApplication.fromJson(json)).toList();
     } on DioException catch (e) {
-      print('❌ Error getting applications: ${e.response?.statusCode}');
-      print('❌ Error message: ${e.message}');
-      print('❌ Error response: ${e.response?.data}');
       throw _handleError(e);
-    } catch (e) {
-      print('❌ Unexpected error: $e');
-      rethrow;
     }
   }
 
@@ -125,6 +102,73 @@ class ApplicationRepository {
       );
 
       return JobApplication.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Get application details
+  /// GET /api/applications/{applicationId}
+  Future<ApplicationDetail> getApplicationDetail(int applicationId) async {
+    try {
+      final response = await _dioClient.get(
+        ApiEndpoints.applicationDetail(applicationId),
+      );
+      return ApplicationDetail.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ==================== JOB COMPLETION METHODS ====================
+
+  /// Start work on an accepted application (Job Seeker)
+  /// PUT /api/applications/{applicationId}/start
+  Future<ApplicationDetail> startWork(int applicationId) async {
+    try {
+      final response = await _dioClient.put(
+        ApiEndpoints.startWork(applicationId),
+      );
+      return ApplicationDetail.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Request job completion (Either party)
+  /// PUT /api/applications/{applicationId}/request-completion
+  Future<ApplicationDetail> requestCompletion(int applicationId) async {
+    try {
+      final response = await _dioClient.put(
+        ApiEndpoints.requestCompletion(applicationId),
+      );
+      return ApplicationDetail.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Confirm job completion (The other party)
+  /// PUT /api/applications/{applicationId}/confirm-completion
+  Future<ApplicationDetail> confirmCompletion(int applicationId) async {
+    try {
+      final response = await _dioClient.put(
+        ApiEndpoints.confirmCompletion(applicationId),
+      );
+      return ApplicationDetail.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Cancel completion request (The requester)
+  /// PUT /api/applications/{applicationId}/cancel-completion-request
+  Future<ApplicationDetail> cancelCompletionRequest(int applicationId) async {
+    try {
+      final response = await _dioClient.put(
+        ApiEndpoints.cancelCompletionRequest(applicationId),
+      );
+      return ApplicationDetail.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleError(e);
     }

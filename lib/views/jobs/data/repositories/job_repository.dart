@@ -67,15 +67,13 @@ class JobRepository {
     int size = 100,
   }) async {
     try {
-      print('📡 Requesting categories: ${ApiEndpoints.categories}');
       final response = await _dio.get(
         ApiEndpoints.categories,
         queryParameters: {'page': page, 'size': size},
       );
-      print('✅ Categories response: ${response.data}');
       return PaginatedResponse.fromJson(response.data, Category.fromJson);
     } on DioException catch (e) {
-      print('❌ getCategories failed: ${e.response?.statusCode} - ${e.message}');
+      print('❌ getCategories failed: ${e.response?.statusCode}');
       throw _handleError(e);
     }
   }
@@ -88,6 +86,7 @@ class JobRepository {
       );
       return Job.fromJson(response.data);
     } on DioException catch (e) {
+      print('❌ createJob failed: ${e.response?.statusCode} - ${e.message}');
       throw _handleError(e);
     }
   }
@@ -109,8 +108,6 @@ class JobRepository {
     int size = 20,
   }) async {
     try {
-      print('📡 Requesting: ${ApiEndpoints.myJobs}?page=$page&size=$size');
-      print('📡 Headers: ${_dio.options.headers}');
       final response = await _dio.get(
         ApiEndpoints.myJobs,
         queryParameters: {
@@ -120,7 +117,7 @@ class JobRepository {
       );
       return PaginatedResponse.fromJson(response.data, Job.fromJson);
     } on DioException catch (e) {
-      print('❌ getMyJobs failed: ${e.response?.statusCode} - ${e.message}');
+      print('❌ getMyJobs failed: ${e.response?.statusCode}');
       throw _handleError(e);
     }
   }

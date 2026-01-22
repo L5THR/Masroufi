@@ -8,6 +8,10 @@ import '../../logic/application_state.dart';
 import '../../data/repositories/application_repository.dart';
 import '../../data/models/application_status.dart';
 import '../widgets/application_card.dart';
+import '../widgets/application_detail_sheet.dart';
+import '../../../chat/data/repositories/chat_repository.dart';
+import '../../../chat/logic/chat_cubit.dart';
+import '../../../chat/presentation/pages/chat_screen.dart';
 
 class ApplicationManagementScreen extends StatelessWidget {
   final int jobId;
@@ -166,11 +170,37 @@ class _ApplicationManagementViewState
                         }
 
                         final application = applications[index];
+                        // Get job seeker user ID for chat
+                        final jobSeekerUserId = application.jobSeeker.userId ??
+                                                application.jobSeeker.user?.id;
+                        final jobSeekerName = application.jobSeeker.fullName;
+
                         return ApplicationCard(
                           application: application,
                           showJobSeeker: true,
-                          onTap: () =>
-                              _showApplicationDetails(context, application),
+                          onTap: () => showRecruiterApplicationDetail(
+                            context,
+                            application,
+                            () => context.read<ApplicationCubit>().refreshJobApplications(widget.jobId),
+                          ),
+                          // Chat button - allows recruiter to chat with applicant
+                          onChat: jobSeekerUserId != null
+                              ? () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => BlocProvider(
+                                        create: (context) => ChatCubit(ChatRepository()),
+                                        child: ChatScreen(
+                                          userId: jobSeekerUserId,
+                                          userName: jobSeekerName,
+                                          userRole: 'JOB_SEEKER',
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : null,
                         );
                       },
                     ),
@@ -356,157 +386,6 @@ class _ApplicationManagementViewState
     );
   }
 
-  void _showApplicationDetails(BuildContext context, dynamic application) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark
-          ? AppTheme.secondaryBlack
-          : AppTheme.secondaryWhite,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (bottomSheetContext) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: ListView(
-            controller: scrollController,
-            children: [
-              // Header
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: isDark
-                        ? AppTheme.tertiaryGrey
-                        : AppTheme.lightGrey,
-                    child: const Icon(
-                      Icons.person,
-                      color: AppTheme.accentBlue,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          application.jobSeeker.fullName,
-                          style: TextStyle(
-                            color: isDark
-                                ? AppTheme.textWhite
-                                : AppTheme.textBlack,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          application.jobSeeker.phoneNumber ?? 'No phone',
-                          style: TextStyle(
-                            color: isDark
-                                ? AppTheme.textGrey
-                                : AppTheme.textDarkGrey,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Status Section
-              Text(
-                'Application Status',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ApplicationStatus.values
-                    .map(
-                      (status) => _StatusChip(
-                        status: status,
-                        isSelected: application.status == status,
-                        onTap: () {
-                          Navigator.pop(bottomSheetContext);
-                          context
-                              .read<ApplicationCubit>()
-                              .updateApplicationStatus(
-                                applicationId: application.id,
-                                status: status,
-                              );
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 24),
-
-              // CV Section
-              if (application.jobSeeker.cvUrl != null) ...[
-                Text(
-                  'CV / Resume',
-                  style: TextStyle(
-                    color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Open CV
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening CV...')),
-                    );
-                  },
-                  icon: const Icon(Icons.file_download),
-                  label: const Text('View CV'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accentBlue,
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-
-              // Actions
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(bottomSheetContext);
-                        Navigator.pushNamed(context, '/chat');
-                      },
-                      icon: const Icon(Icons.chat),
-                      label: const Text('Message'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accentBlue,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _StatItem extends StatelessWidget {
@@ -570,39 +449,3 @@ class _FilterOption extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  final ApplicationStatus status;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _StatusChip({
-    required this.status,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Color(status.colorValue);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? color : color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color, width: 2),
-        ),
-        child: Text(
-          status.displayName,
-          style: TextStyle(
-            color: isSelected ? Colors.white : color,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}

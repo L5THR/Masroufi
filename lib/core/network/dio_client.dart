@@ -2,10 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  // NEW - USE THIS
-  static const String baseUrl =
-      'http://51.91.111.185:8088'; // mrouki.jihed@esprit.tn // 12345678
-  // Update WebSocket URL too
+  static const String baseUrl = 'http://51.91.111.185:8088';
   static const String wsUrl = 'ws://51.91.111.185:8088/ws/chat';
 }
 
@@ -41,9 +38,6 @@ class DioClient {
 
   void setAuthToken(String token) {
     dio.options.headers['Authorization'] = 'Bearer $token';
-    if (kDebugMode) {
-      print('🔑 Auth token set: ${token.substring(0, 20)}...');
-    }
   }
 
   void removeAuthToken() {

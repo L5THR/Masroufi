@@ -33,6 +33,8 @@ import 'views/recruiter/logic/recruiter_profile_cubit.dart';
 import 'views/recruiter/presentation/pages/create_job_screen.dart';
 import 'views/recruiter/presentation/pages/edit_job_screen.dart';
 import 'views/recruiter/presentation/pages/edit_recruiter_profile.dart';
+import 'views/recruiter/logic/job_wizard_cubit.dart';
+import 'views/recruiter/presentation/pages/job_wizard_screen.dart';
 
 // Jobs
 import 'views/jobs/logic/job_cubit.dart';
@@ -57,6 +59,9 @@ import 'views/quiz/data/repositories/quiz_repository.dart';
 
 // Chat
 import 'views/chat/presentation/pages/chat_page.dart';
+import 'views/chat/presentation/pages/chat_screen_new.dart';
+import 'views/chat/logic/chat_cubit.dart';
+import 'views/chat/data/repositories/chat_repository.dart';
 
 // Notifications
 import 'views/notifications/presentation/pages/notifications_screen.dart';
@@ -142,6 +147,7 @@ class _MasroufiAppState extends State<MasroufiApp> {
         RepositoryProvider(create: (context) => QuizRepository()),
         RepositoryProvider(create: (context) => JobRepository()),
         RepositoryProvider(create: (context) => ApplicationRepository()),
+        RepositoryProvider(create: (context) => FileUploadRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -245,7 +251,10 @@ class _MasroufiAppState extends State<MasroufiApp> {
           builder: (_) => MultiBlocProvider(
             providers: [
               BlocProvider(
-                create: (context) => RecruiterJobsCubit(JobRepository()),
+                create: (context) => RecruiterJobsCubit(
+                  context.read<JobRepository>(),
+                  context.read<QuizRepository>(),
+                ),
               ),
               BlocProvider(
                 create: (context) =>
@@ -262,10 +271,13 @@ class _MasroufiAppState extends State<MasroufiApp> {
 
       case '/create-job':
         return MaterialPageRoute(
-          builder: (_) => BlocProvider(
-            create: (context) =>
-                CreateJobCubit(JobRepository(), FileUploadRepository()),
-            child: const CreateJobScreen(),
+          builder: (context) => BlocProvider(
+            create: (context) => JobWizardCubit(
+              jobRepository: context.read<JobRepository>(),
+              quizRepository: context.read<QuizRepository>(),
+              fileUploadRepository: context.read<FileUploadRepository>(),
+            ),
+            child: const JobWizardScreen(),
           ),
           settings: settings,
         );
@@ -335,8 +347,26 @@ class _MasroufiAppState extends State<MasroufiApp> {
 
       // ==================== CHAT ====================
       case '/chat':
+        final args = settings.arguments as Map<String, dynamic>?;
+        if (args == null) {
+          return MaterialPageRoute(
+            builder: (_) => BlocProvider(
+              create: (context) => ChatCubit(ChatRepository()),
+              child: const ChatScreen(),
+            ),
+            settings: settings,
+          );
+        }
         return MaterialPageRoute(
-          builder: (_) => const ChatScreen(),
+          builder: (_) => BlocProvider(
+            create: (context) => ChatCubit(ChatRepository()),
+            child: JobChatScreen(
+              recipientId: args['recipientId'] as int,
+              recipientName: args['recipientName'] as String,
+              jobTitle: args['jobTitle'] as String?,
+              jobId: args['jobId'] as int?,
+            ),
+          ),
           settings: settings,
         );
 

@@ -49,7 +49,6 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
 
   Future<void> _pickCompanyLogo() async {
     try {
-      print('📸 Opening image picker for company logo');
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
@@ -58,10 +57,8 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
         setState(() {
           _companyLogo = File(image.path);
         });
-        print('✅ Company logo selected: ${image.path}');
       }
     } catch (e) {
-      print('❌ Error picking image: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -73,13 +70,9 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
   }
 
   Future<void> _updateProfile() async {
-    print('🔵 Update recruiter profile button clicked');
     if (!_formKey.currentState!.validate()) {
-      print('❌ Form validation failed');
       return;
     }
-
-    print('✅ Form validation passed');
 
     setState(() {
       _isUpdating = true;
@@ -89,12 +82,9 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
     String? companyLogoUrl;
     if (_companyLogo != null) {
       try {
-        print('📤 Uploading company logo...');
         final uploadRepo = FileUploadRepository();
         companyLogoUrl = await uploadRepo.uploadFile(_companyLogo!);
-        print('✅ Company logo uploaded: $companyLogoUrl');
       } catch (e) {
-        print('❌ Failed to upload company logo: $e');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -106,7 +96,6 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
       }
     }
 
-    print('🔵 Calling updateRecruiterProfile...');
     await context.read<UserCubit>().updateRecruiterProfile(
           companyName: _companyNameController.text.trim(),
           website: _websiteController.text.trim().isEmpty
@@ -127,16 +116,14 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
       body: BlocConsumer<UserCubit, UserState>(
         listener: (context, state) {
           if (state is UserLoaded && _isUpdating) {
-            print('✅ Recruiter profile updated successfully');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('✅ Profile updated successfully!'),
+                content: Text('Profile updated successfully!'),
                 backgroundColor: AppTheme.successGreen,
               ),
             );
             Navigator.pop(context, true); // Return true to indicate success
           } else if (state is UserError) {
-            print('❌ Recruiter profile update failed: ${state.message}');
             setState(() {
               _isUpdating = false;
             });
@@ -156,7 +143,6 @@ class _EditRecruiterProfileViewState extends State<_EditRecruiterProfileView> {
               _companyNameController.text = profile.companyName;
               _websiteController.text = profile.website ?? '';
               _isInitialized = true;
-              print('✅ Form initialized with recruiter data');
             }
           }
 

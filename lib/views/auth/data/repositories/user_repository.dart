@@ -9,14 +9,9 @@ class UserRepository {
   /// GET /api/users/me - Get current user profile
   Future<MeResponse> getMe() async {
     try {
-      print('📡 Fetching current user profile...');
-      print('📡 Endpoint: ${ApiEndpoints.currentUser}');
       final response = await _dio.get(ApiEndpoints.currentUser);
-      print('✅ User profile fetched successfully');
-      print('✅ Role: ${response.data['role']}, Email: ${response.data['email']}');
       return MeResponse.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ Failed to fetch user profile: ${e.response?.statusCode}');
       throw _handleError(e);
     }
   }
@@ -37,20 +32,14 @@ class UserRepository {
         if (cvUrl != null) 'cvUrl': cvUrl,
         if (profilePictureUrl != null) 'profilePictureUrl': profilePictureUrl,
       };
-      print('📡 Updating job seeker profile...');
-      print('📡 Endpoint: ${ApiEndpoints.updateJobSeekerProfile}');
-      print('📡 Data: $data');
 
       final response = await _dio.put(
         ApiEndpoints.updateJobSeekerProfile,
         data: data,
       );
 
-      print('✅ Job seeker profile updated successfully');
       return MeResponse.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ Failed to update job seeker profile: ${e.response?.statusCode}');
-      print('❌ Error: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -67,29 +56,19 @@ class UserRepository {
         if (website != null) 'website': website,
         if (companyLogoUrl != null) 'companyLogoUrl': companyLogoUrl,
       };
-      print('📡 Updating recruiter profile...');
-      print('📡 Endpoint: ${ApiEndpoints.updateRecruiterProfile}');
-      print('📡 Data: $data');
 
       final response = await _dio.put(
         ApiEndpoints.updateRecruiterProfile,
         data: data,
       );
 
-      print('✅ Recruiter profile updated successfully');
       return MeResponse.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ Failed to update recruiter profile: ${e.response?.statusCode}');
-      print('❌ Error: ${e.response?.data}');
       throw _handleError(e);
     }
   }
 
   String _handleError(DioException e) {
-    print('🔍 Handling error - Type: ${e.type}, Status: ${e.response?.statusCode}');
-    print('🔍 Response data type: ${e.response?.data.runtimeType}');
-    print('🔍 Response data: ${e.response?.data}');
-
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:

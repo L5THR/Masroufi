@@ -1,6 +1,7 @@
 // lib/views/applications/logic/application_cubit.dart
 
 import 'package:flutter_alinfo9/views/applications/data/models/job_application.dart';
+import 'package:flutter_alinfo9/views/applications/data/models/application_detail.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../data/repositories/application_repository.dart';
 import '../data/models/application_status.dart';
@@ -15,16 +16,12 @@ class ApplicationCubit extends Cubit<ApplicationState> {
 
   /// Apply to a job
   Future<void> applyToJob(int jobId) async {
-    print('🔵 ApplicationCubit: Starting application to job $jobId');
     emit(const ApplicationApplyLoading());
 
     try {
       final application = await _repository.applyToJob(jobId);
-      print('✅ ApplicationCubit: Application successful!');
-      print('✅ Application ID: ${application.id}, Status: ${application.status}');
       emit(ApplicationApplySuccess(application));
     } catch (e) {
-      print('❌ ApplicationCubit: Application failed - $e');
       emit(ApplicationApplyError(e.toString()));
     }
   }
@@ -149,6 +146,9 @@ class ApplicationCubit extends Cubit<ApplicationState> {
     required int applicationId,
     required ApplicationStatus status,
   }) async {
+    // Preserve previous state to restore after error
+    final previousState = state;
+
     emit(ApplicationStatusUpdating(applicationId));
 
     try {
@@ -159,13 +159,90 @@ class ApplicationCubit extends Cubit<ApplicationState> {
 
       emit(ApplicationStatusUpdated(updatedApplication));
 
-      // Refresh the list after update
-      final currentState = state;
-      if (currentState is JobApplicationsLoaded) {
-        await refreshJobApplications(currentState.jobId);
+      // Refresh the list after successful update
+      if (previousState is JobApplicationsLoaded) {
+        await refreshJobApplications(previousState.jobId);
       }
     } catch (e) {
+      // Emit error first (listener will show snackbar)
       emit(ApplicationStatusUpdateError(e.toString()));
+
+      // Restore previous state so UI doesn't go blank
+      // Use Future.delayed to ensure error state is processed first
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (previousState is JobApplicationsLoaded) {
+        emit(JobApplicationsLoaded(
+          applications: previousState.applications,
+          jobId: previousState.jobId,
+          hasMore: previousState.hasMore,
+          currentPage: previousState.currentPage,
+        ));
+      }
+    }
+  }
+
+  // ==================== APPLICATION DETAIL METHODS ====================
+
+  /// Get application details
+  Future<void> getApplicationDetail(int applicationId) async {
+    emit(const ApplicationDetailLoading());
+
+    try {
+      final application = await _repository.getApplicationDetail(applicationId);
+      emit(ApplicationDetailLoaded(application));
+    } catch (e) {
+      emit(ApplicationDetailError(e.toString()));
+    }
+  }
+
+  // ==================== JOB COMPLETION METHODS ====================
+
+  /// Start work on an accepted application (Job Seeker)
+  Future<void> startWork(int applicationId) async {
+    emit(CompletionActionLoading(applicationId, 'start'));
+
+    try {
+      final application = await _repository.startWork(applicationId);
+      emit(WorkStarted(application));
+    } catch (e) {
+      emit(CompletionActionError(e.toString(), 'start'));
+    }
+  }
+
+  /// Request job completion (Either party)
+  Future<void> requestCompletion(int applicationId) async {
+    emit(CompletionActionLoading(applicationId, 'request'));
+
+    try {
+      final application = await _repository.requestCompletion(applicationId);
+      emit(CompletionRequested(application));
+    } catch (e) {
+      emit(CompletionActionError(e.toString(), 'request'));
+    }
+  }
+
+  /// Confirm job completion (The other party)
+  Future<void> confirmCompletion(int applicationId) async {
+    emit(CompletionActionLoading(applicationId, 'confirm'));
+
+    try {
+      final application = await _repository.confirmCompletion(applicationId);
+      emit(CompletionConfirmed(application));
+    } catch (e) {
+      emit(CompletionActionError(e.toString(), 'confirm'));
+    }
+  }
+
+  /// Cancel completion request (The requester)
+  Future<void> cancelCompletionRequest(int applicationId) async {
+    emit(CompletionActionLoading(applicationId, 'cancel'));
+
+    try {
+      final application = await _repository.cancelCompletionRequest(applicationId);
+      emit(CompletionRequestCancelled(application));
+    } catch (e) {
+      emit(CompletionActionError(e.toString(), 'cancel'));
     }
   }
 

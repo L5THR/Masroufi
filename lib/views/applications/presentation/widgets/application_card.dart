@@ -4,17 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/app_theme.dart';
 import '../../data/models/job_application.dart';
+import '../../data/models/application_status.dart';
 import 'application_status_badge.dart';
+import '../../../reviews/presentation/widgets/user_rating_widget.dart';
 
 class ApplicationCard extends StatelessWidget {
   final JobApplication application;
   final VoidCallback onTap;
+  final VoidCallback? onChat; // Optional chat button callback
+  final VoidCallback? onReview; // Optional review button callback
   final bool showJobSeeker; // true for recruiters to see applicant info
 
   const ApplicationCard({
     super.key,
     required this.application,
     required this.onTap,
+    this.onChat,
+    this.onReview,
     this.showJobSeeker = false,
   });
 
@@ -82,6 +88,20 @@ class ApplicationCard extends StatelessWidget {
                           fontSize: 14,
                         ),
                       ),
+                      // Show rating for job seeker or recruiter
+                      const SizedBox(height: 4),
+                      if (showJobSeeker && application.jobSeeker.userId != null)
+                        UserRatingWidget(
+                          userId: application.jobSeeker.userId!,
+                          size: 14,
+                          showCount: true,
+                        )
+                      else if (!showJobSeeker && application.job.recruiter?.userId != null)
+                        UserRatingWidget(
+                          userId: application.job.recruiter!.userId!,
+                          size: 14,
+                          showCount: true,
+                        ),
                     ],
                   ),
                 ),
@@ -133,6 +153,50 @@ class ApplicationCard extends StatelessWidget {
                 ),
               ],
             ),
+
+            // Chat Button (if callback provided)
+            if (onChat != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onChat,
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: Text(
+                    showJobSeeker
+                        ? 'Chat with Applicant'
+                        : 'Chat with Recruiter',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.accentBlue,
+                    side: const BorderSide(color: AppTheme.accentBlue),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+
+            // Review Button (if callback provided and status is COMPLETED)
+            if (onReview != null && application.status == ApplicationStatus.COMPLETED) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onReview,
+                  icon: const Icon(Icons.star_outline, size: 18),
+                  label: Text(
+                    showJobSeeker
+                        ? 'Review Job Seeker'
+                        : 'Review Recruiter',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentYellow,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

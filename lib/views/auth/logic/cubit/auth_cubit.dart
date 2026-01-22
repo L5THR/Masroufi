@@ -86,17 +86,35 @@ class AuthCubit extends Cubit<AuthState> {
 
     await HiveStorage.saveToken(response.accessToken);
     await HiveStorage.saveRefreshToken(response.refreshToken);
-    await HiveStorage.saveUserData({
-      'role': response.role,
-      'status': response.status,
-      'email': email,
-    });
 
+    // Set token in Dio before fetching user profile
     DioClient.instance.setAuthToken(response.accessToken);
-    debugPrint('✅ Auth successful - Role: ${response.role}');
-    debugPrint('✅ Token saved: ${response.accessToken.substring(0, 20)}...');
 
-    emit(AuthLoginSuccess(response));
+    // Fetch full user profile to get the user ID
+    try {
+      final meResponse = await _userRepository.getMe();
+
+      // Save complete user data including the ID
+      await HiveStorage.saveUserData({
+        'id': meResponse.id, // 🔧 FIX: Save user ID for chat feature
+        'role': meResponse.role,
+        'status': meResponse.status,
+        'email': meResponse.email,
+      });
+
+      debugPrint('Auth successful - Role: ${meResponse.role}');
+
+      emit(AuthLoginSuccess(response));
+    } catch (e) {
+      debugPrint('AuthCubit._handleAuthSuccess error: $e');
+      // If we can't fetch the profile, still save what we have
+      await HiveStorage.saveUserData({
+        'role': response.role,
+        'status': response.status,
+        'email': email,
+      });
+      emit(AuthLoginSuccess(response));
+    }
   }
 
   // ==================== LOGOUT ====================
@@ -108,11 +126,9 @@ class AuthCubit extends Cubit<AuthState> {
       // Remove token from Dio
       DioClient.instance.removeAuthToken();
 
-      debugPrint('✅ Logout successful - All data cleared');
-
       emit(AuthInitial());
     } catch (e) {
-      debugPrint('❌ Logout error: $e');
+      debugPrint('AuthCubit.logout error: $e');
       emit(AuthError('Failed to logout. Please try again.'));
     }
   }
@@ -126,7 +142,6 @@ class AuthCubit extends Cubit<AuthState> {
       final refreshToken = await HiveStorage.getRefreshToken();
 
       if (token == null || token.isEmpty) {
-        debugPrint('No token found');
         emit(AuthInitial());
         return;
       }
@@ -139,21 +154,19 @@ class AuthCubit extends Cubit<AuthState> {
 
       // Check if user is blocked
       if (meResponse.isBlocked) {
-        debugPrint('User account is blocked');
         await HiveStorage.clearAll();
         DioClient.instance.removeAuthToken();
         emit(const AuthError('Your account has been blocked. Please contact support.'));
         return;
       }
 
-      // Update local storage with fresh data
+      // Update local storage with fresh data including user ID
       await HiveStorage.saveUserData({
+        'id': meResponse.id, // 🔧 FIX: Save user ID for chat feature
         'role': meResponse.role,
         'status': meResponse.status,
         'email': meResponse.email,
       });
-
-      debugPrint('Token validated - Role: ${meResponse.role}');
 
       final loginResponse = LoginResponse(
         accessToken: token,
@@ -165,7 +178,6 @@ class AuthCubit extends Cubit<AuthState> {
 
       emit(AuthLoginSuccess(loginResponse));
     } catch (e) {
-      debugPrint('Token validation failed: $e');
       // Token is invalid or expired - clear storage and redirect to login
       await HiveStorage.clearAll();
       DioClient.instance.removeAuthToken();
@@ -178,13 +190,11 @@ class AuthCubit extends Cubit<AuthState> {
   /// This is a developer tool for debugging auth issues
   Future<void> forceClearSession() async {
     try {
-      debugPrint('🔧 [DEV] Force clearing session...');
       await HiveStorage.clearAll();
       DioClient.instance.removeAuthToken();
       emit(AuthInitial());
-      debugPrint('✅ [DEV] Session cleared successfully');
     } catch (e) {
-      debugPrint('❌ [DEV] Error clearing session: $e');
+      debugPrint('AuthCubit.forceClearSession error: $e');
     }
   }
 
@@ -205,7 +215,6 @@ class AuthCubit extends Cubit<AuthState> {
   // ==================== CONTINUE AS GUEST ====================
   /// Allow user to browse without authentication
   void continueAsGuest() {
-    debugPrint('👤 User continuing as guest');
     emit(const AuthGuest());
   }
 

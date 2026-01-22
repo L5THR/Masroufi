@@ -186,4 +186,60 @@ class AdminReportsCubit extends Cubit<AdminReportsState> {
   Future<void> dismissReport(int reportId) async {
     await updateReportStatus(reportId, 'RESOLVED');
   }
+
+  // ==================== JOB REPORT ACTIONS ====================
+
+  /// Get job details to retrieve recruiter info
+  Future<Map<String, dynamic>?> getJobDetails(int jobId) async {
+    try {
+      return await _repository.getJobDetails(jobId);
+    } catch (e) {
+      emit(AdminReportsError('Failed to fetch job details: $e'));
+      return null;
+    }
+  }
+
+  /// Delete a reported job and resolve the report
+  Future<void> deleteJobAndResolve(int reportId, int jobId) async {
+    try {
+      // Delete the job
+      await _repository.deleteJob(jobId);
+      // Resolve the report
+      await _repository.updateReportStatus(reportId, 'RESOLVED');
+      emit(const AdminReportsActionSuccess('Job deleted and report resolved'));
+      await refresh();
+    } catch (e) {
+      emit(AdminReportsError('Failed to delete job: $e'));
+    }
+  }
+
+  /// Block the recruiter who posted the job and resolve the report
+  Future<void> blockRecruiterAndResolve(int reportId, int recruiterId) async {
+    try {
+      // Block the recruiter
+      await _repository.updateUserStatus(recruiterId, 'BLOCKED');
+      // Resolve the report
+      await _repository.updateReportStatus(reportId, 'RESOLVED');
+      emit(const AdminReportsActionSuccess('Recruiter blocked and report resolved'));
+      await refresh();
+    } catch (e) {
+      emit(AdminReportsError('Failed to block recruiter: $e'));
+    }
+  }
+
+  /// Delete job and block the recruiter, then resolve the report
+  Future<void> deleteJobAndBlockRecruiter(int reportId, int jobId, int recruiterId) async {
+    try {
+      // Delete the job
+      await _repository.deleteJob(jobId);
+      // Block the recruiter
+      await _repository.updateUserStatus(recruiterId, 'BLOCKED');
+      // Resolve the report
+      await _repository.updateReportStatus(reportId, 'RESOLVED');
+      emit(const AdminReportsActionSuccess('Job deleted, recruiter blocked, and report resolved'));
+      await refresh();
+    } catch (e) {
+      emit(AdminReportsError('Failed to take action: $e'));
+    }
+  }
 }

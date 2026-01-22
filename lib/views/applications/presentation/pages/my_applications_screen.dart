@@ -7,6 +7,12 @@ import '../../logic/application_cubit.dart';
 import '../../logic/application_state.dart';
 import '../../data/repositories/application_repository.dart';
 import '../widgets/application_card.dart';
+import '../widgets/application_detail_sheet.dart';
+import '../../data/models/application_status.dart';
+import '../../../reviews/presentation/widgets/create_review_dialog.dart';
+import '../../../chat/data/repositories/chat_repository.dart';
+import '../../../chat/logic/chat_cubit.dart';
+import '../../../chat/presentation/pages/chat_screen.dart';
 
 class MyApplicationsScreen extends StatelessWidget {
   const MyApplicationsScreen({super.key});
@@ -52,8 +58,6 @@ class _MyApplicationsViewState extends State<_MyApplicationsView> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Applications'),
@@ -106,18 +110,52 @@ class _MyApplicationsViewState extends State<_MyApplicationsView> {
                   }
 
                   final application = state.applications[index];
+                  // Get recruiter user ID for chat
+                  final recruiterUserId = application.job.recruiter?.userId ??
+                                          application.job.recruiter?.user?.id;
+                  final recruiterName = application.job.recruiter?.companyName ?? 'Recruiter';
+
                   return ApplicationCard(
                     application: application,
                     onTap: () {
-                      Navigator.pushNamed(
+                      showJobSeekerApplicationDetail(
                         context,
-                        '/job-details',
-                        arguments: {
-                          'jobId': application.job.id,
-                          'isRecruiter': false,
-                        },
+                        application,
+                        () => context.read<ApplicationCubit>().refreshMyApplications(),
                       );
                     },
+                    // Chat button - allows job seeker to chat with recruiter
+                    onChat: recruiterUserId != null
+                        ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BlocProvider(
+                                  create: (context) => ChatCubit(ChatRepository()),
+                                  child: ChatScreen(
+                                    userId: recruiterUserId,
+                                    userName: recruiterName,
+                                    userRole: 'RECRUITER',
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                        : null,
+                    // Review button - shows only for COMPLETED applications
+                    onReview: application.status == ApplicationStatus.COMPLETED
+                        ? () async {
+                            await showCreateReviewDialog(
+                              context: context,
+                              jobApplicationId: application.id,
+                              applicantName: application.job.recruiter?.companyName ?? 'Recruiter',
+                            );
+                            // Refresh applications after review
+                            if (context.mounted) {
+                              context.read<ApplicationCubit>().refreshMyApplications();
+                            }
+                          }
+                        : null,
                   );
                 },
               ),

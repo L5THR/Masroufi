@@ -15,12 +15,10 @@ class CreateJobCubit extends Cubit<CreateJobState> {
   Future<void> createJob(JobRequest jobRequest, {File? imageFile}) async {
     emit(CreateJobLoading());
     try {
-      print('Image file: $imageFile');
       String? imageUrl;
       if (imageFile != null) {
         imageUrl = await _fileUploadRepository.uploadFile(imageFile);
       }
-      print('Image URL: $imageUrl');
 
       final newJobRequest = JobRequest(
         title: jobRequest.title,
@@ -35,12 +33,9 @@ class CreateJobCubit extends Cubit<CreateJobState> {
         skills: jobRequest.skills,
       );
 
-      print('Job request: ${newJobRequest.toJson()}');
-
       final job = await _jobRepository.createJob(newJobRequest);
       emit(CreateJobSuccess(job));
     } catch (e) {
-      print('Error creating job: $e');
       emit(CreateJobFailure(e.toString()));
     }
   }

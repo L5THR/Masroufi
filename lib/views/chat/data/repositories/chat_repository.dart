@@ -17,22 +17,19 @@ class ChatRepository {
     required String message,
   }) async {
     try {
-      print('📡 Sending chat message to user ID: $recipientId');
-      print('📡 Message: $message');
+      final requestData = {
+        'recipientId': recipientId,
+        'message': message,
+      };
 
       final response = await _dioClient.post(
         ApiEndpoints.chatMessages,
-        data: {
-          'recipientId': recipientId,
-          'message': message,
-        },
+        data: requestData,
       );
 
-      print('✅ Message sent successfully! Response: ${response.data}');
       return ChatMessage.fromJson(response.data);
     } on DioException catch (e) {
       print('❌ Failed to send message: ${e.response?.statusCode}');
-      print('❌ Error: ${e.response?.data}');
       throw _handleError(e);
     }
   }
@@ -47,8 +44,6 @@ class ChatRepository {
     int size = 50,
   }) async {
     try {
-      print('📡 Getting chat history with user ID: $userId');
-
       final response = await _dioClient.get(
         ApiEndpoints.chatHistory(userId),
         queryParameters: {
@@ -58,7 +53,6 @@ class ChatRepository {
         },
       );
 
-      print('✅ Chat history retrieved successfully');
       final content = response.data['content'] as List;
       return content.map((json) => ChatMessage.fromJson(json)).toList();
     } on DioException catch (e) {
@@ -76,8 +70,6 @@ class ChatRepository {
     int size = 20,
   }) async {
     try {
-      print('📡 Getting conversations...');
-
       final response = await _dioClient.get(
         ApiEndpoints.chatConversations,
         queryParameters: {
@@ -87,7 +79,6 @@ class ChatRepository {
         },
       );
 
-      print('✅ Conversations retrieved successfully');
       final content = response.data['content'] as List;
       return content.map((json) => ChatMessage.fromJson(json)).toList();
     } on DioException catch (e) {

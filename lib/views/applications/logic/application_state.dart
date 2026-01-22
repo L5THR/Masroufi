@@ -2,7 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 import '../data/models/job_application.dart';
-import '../data/models/application_status.dart';
+import '../data/models/application_detail.dart';
 
 abstract class ApplicationState extends Equatable {
   const ApplicationState();
@@ -138,4 +138,86 @@ class ApplicationStatusUpdateError extends ApplicationState {
 
   @override
   List<Object?> get props => [message];
+}
+
+// ==================== APPLICATION DETAIL STATES ====================
+
+class ApplicationDetailLoading extends ApplicationState {
+  const ApplicationDetailLoading();
+}
+
+class ApplicationDetailLoaded extends ApplicationState {
+  final ApplicationDetail application;
+
+  const ApplicationDetailLoaded(this.application);
+
+  @override
+  List<Object?> get props => [application];
+}
+
+class ApplicationDetailError extends ApplicationState {
+  final String message;
+
+  const ApplicationDetailError(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
+// ==================== JOB COMPLETION STATES ====================
+
+class CompletionActionLoading extends ApplicationState {
+  final int applicationId;
+  final String action;
+
+  const CompletionActionLoading(this.applicationId, this.action);
+
+  @override
+  List<Object?> get props => [applicationId, action];
+}
+
+class WorkStarted extends ApplicationState {
+  final ApplicationDetail application;
+
+  const WorkStarted(this.application);
+
+  @override
+  List<Object?> get props => [application];
+}
+
+class CompletionRequested extends ApplicationState {
+  final ApplicationDetail application;
+
+  const CompletionRequested(this.application);
+
+  @override
+  List<Object?> get props => [application];
+}
+
+class CompletionConfirmed extends ApplicationState {
+  final ApplicationDetail application;
+
+  const CompletionConfirmed(this.application);
+
+  @override
+  List<Object?> get props => [application];
+}
+
+class CompletionRequestCancelled extends ApplicationState {
+  final ApplicationDetail application;
+
+  const CompletionRequestCancelled(this.application);
+
+  @override
+  List<Object?> get props => [application];
+}
+
+class CompletionActionError extends ApplicationState {
+  final String message;
+  final String action;
+
+  const CompletionActionError(this.message, this.action);
+
+  @override
+  List<Object?> get props => [message, action];
 }

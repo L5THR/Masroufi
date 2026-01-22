@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/app_theme.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
-import '../../data/repositories/auth_repository.dart';
 import '../../logic/cubit/auth_cubit.dart';
 import '../../logic/cubit/auth_state.dart';
 
@@ -12,10 +11,8 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AuthCubit(AuthRepository()),
-      child: const LoginView(),
-    );
+    // Use the global AuthCubit instead of creating a new one
+    return const LoginView();
   }
 }
 
@@ -244,31 +241,37 @@ class _LoginViewState extends State<LoginView> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
-                    // Debug tool - clear session if token is corrupted
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () async {
-                          await context.read<AuthCubit>().forceClearSession();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Session cleared. You can now login again.'),
-                                backgroundColor: AppTheme.accentGreen,
-                              ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: Text(
-                          'Clear Session (Fix Login Issues)',
-                          style: TextStyle(
-                            color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                            fontSize: 12,
+                    // Show "Clear Session" button only when there's an auth error
+                    if (state is AuthError) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            await context.read<AuthCubit>().forceClearSession();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Session cleared. You can now login again.',
+                                  ),
+                                  backgroundColor: AppTheme.accentGreen,
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: Text(
+                            'Clear Session & Try Again',
+                            style: TextStyle(
+                              color: isDark
+                                  ? AppTheme.textGrey
+                                  : AppTheme.textDarkGrey,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

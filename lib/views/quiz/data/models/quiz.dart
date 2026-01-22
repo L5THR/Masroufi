@@ -63,6 +63,24 @@ class QuizCreateRequest {
   }
 }
 
+/// Request model for updating a quiz
+class QuizUpdateRequest {
+  final String title;
+  final List<QuestionDto> questions;
+
+  QuizUpdateRequest({
+    required this.title,
+    required this.questions,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'questions': questions.map((q) => q.toJson()).toList(),
+    };
+  }
+}
+
 /// Request model for submitting quiz answers
 class QuizSubmitRequest {
   final List<int> answers; // List of selected option IDs

@@ -6,6 +6,7 @@ import '../models/user_account.dart';
 import '../models/report.dart';
 import '../models/activity.dart';
 import '../models/update_requests.dart';
+import '../../../jobs/data/models/category.dart';
 
 class AdminRepository {
   final Dio _dio = DioClient.instance.dio;
@@ -109,6 +110,31 @@ class AdminRepository {
     }
   }
 
+  // ==================== JOB MANAGEMENT ====================
+
+  /// Get job details (to retrieve recruiter info)
+  Future<Map<String, dynamic>> getJobDetails(int jobId) async {
+    try {
+      final response = await _dio.get(ApiEndpoints.jobById(jobId));
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } catch (e) {
+      throw 'Failed to fetch job details: $e';
+    }
+  }
+
+  /// Delete a job (admin action)
+  Future<void> deleteJob(int jobId) async {
+    try {
+      await _dio.delete(ApiEndpoints.adminDeleteJob(jobId));
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } catch (e) {
+      throw 'Failed to delete job: $e';
+    }
+  }
+
   // ==================== REPORT MANAGEMENT ====================
 
   /// Get all reports (paginated)
@@ -206,6 +232,110 @@ class AdminRepository {
       throw _handleError(e);
     } catch (e) {
       throw 'Failed to fetch activities: $e';
+    }
+  }
+
+  // ==================== CATEGORY MANAGEMENT ====================
+
+  /// Get all categories (paginated)
+  Future<List<Category>> getCategories({
+    int page = 0,
+    int size = 50,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.categories,
+        queryParameters: {
+          'page': page,
+          'size': size,
+        },
+      );
+
+      final data = response.data;
+      final content = data['content'] as List;
+      return content.map((json) => Category.fromJson(json)).toList();
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } catch (e) {
+      throw 'Failed to fetch categories: $e';
+    }
+  }
+
+  /// Get skills for a category
+  Future<List<String>> getCategorySkills(int categoryId) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.categorySkills(categoryId),
+      );
+      return List<String>.from(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } catch (e) {
+      throw 'Failed to fetch category skills: $e';
+    }
+  }
+
+  /// Create a new category (Admin only)
+  Future<Category> createCategory({
+    required String name,
+    String? icon,
+    List<String> skills = const [],
+  }) async {
+    try {
+      final request = CategoryRequest(
+        name: name,
+        icon: icon,
+        skills: skills,
+      );
+
+      final response = await _dio.post(
+        ApiEndpoints.adminCategories,
+        data: request.toJson(),
+      );
+
+      return Category.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } catch (e) {
+      throw 'Failed to create category: $e';
+    }
+  }
+
+  /// Update a category (Admin only)
+  Future<Category> updateCategory({
+    required int categoryId,
+    required String name,
+    String? icon,
+    List<String> skills = const [],
+  }) async {
+    try {
+      final request = CategoryRequest(
+        name: name,
+        icon: icon,
+        skills: skills,
+      );
+
+      final response = await _dio.put(
+        ApiEndpoints.adminUpdateCategory(categoryId),
+        data: request.toJson(),
+      );
+
+      return Category.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } catch (e) {
+      throw 'Failed to update category: $e';
+    }
+  }
+
+  /// Delete a category (Admin only)
+  Future<void> deleteCategory(int categoryId) async {
+    try {
+      await _dio.delete(ApiEndpoints.adminDeleteCategory(categoryId));
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } catch (e) {
+      throw 'Failed to delete category: $e';
     }
   }
 

@@ -595,7 +595,7 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Block User'),
-        content: Text('Are you sure you want to block ${user.email}?'),
+        content: Text('Are you sure you want to block ${user.displayName}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -621,7 +621,7 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Unblock User'),
-        content: Text('Are you sure you want to unblock ${user.email}?'),
+        content: Text('Are you sure you want to unblock ${user.displayName}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -648,7 +648,7 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete User'),
         content: Text(
-          'Are you sure you want to permanently delete ${user.email}?\n\n'
+          'Are you sure you want to permanently delete ${user.displayName}?\n\n'
           'This action cannot be undone.',
         ),
         actions: [
@@ -739,55 +739,401 @@ class _AdminDashboardContentState extends State<_AdminDashboardContent> {
   }
 
   void _showReportActionDialog(BuildContext context, Report report) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Report Actions'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+        title: Text(
+          'Report Actions',
+          style: TextStyle(
+            color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Status actions
+              ListTile(
+                leading: const Icon(Icons.visibility, color: AppTheme.accentBlue),
+                title: Text(
+                  'Mark as Under Review',
+                  style: TextStyle(
+                    color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.read<AdminReportsCubit>().markAsUnderReview(report.id);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.check_circle, color: AppTheme.accentGreen),
+                title: Text(
+                  'Resolve Report',
+                  style: TextStyle(
+                    color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.read<AdminReportsCubit>().resolveReport(report.id);
+                },
+              ),
+
+              // Job-specific actions
+              if (report.isJobReport) ...[
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Job Actions',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: AppTheme.errorRed),
+                  title: Text(
+                    'Delete Job',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Remove the reported job posting',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmDeleteJob(context, report);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.block, color: AppTheme.warningYellow),
+                  title: Text(
+                    'Block Recruiter',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Ban the recruiter who posted this job',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmBlockRecruiter(context, report);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.gavel, color: AppTheme.errorRed),
+                  title: Text(
+                    'Delete Job & Block Recruiter',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Remove job and ban the recruiter',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmDeleteJobAndBlockRecruiter(context, report);
+                  },
+                ),
+              ],
+
+              // User-specific actions
+              if (report.isUserReport) ...[
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(
+                    'View User #${report.targetId}',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    // TODO: Navigate to user details
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== JOB REPORT ACTION CONFIRMATIONS ====================
+
+  void _confirmDeleteJob(BuildContext context, Report report) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+        title: Text(
+          'Delete Job',
+          style: TextStyle(
+            color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete this job posting?\n\n'
+          'This action cannot be undone. The report will be marked as resolved.',
+          style: TextStyle(
+            color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<AdminReportsCubit>().deleteJobAndResolve(
+                report.id,
+                report.targetId,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorRed,
+            ),
+            child: const Text('Delete Job'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBlockRecruiter(BuildContext context, Report report) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Show loading dialog while fetching job details
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+        content: Row(
           children: [
-            ListTile(
-              leading: const Icon(Icons.visibility, color: AppTheme.accentBlue),
-              title: const Text('Mark as Under Review'),
-              onTap: () {
-                Navigator.pop(ctx);
-                context
-                    .read<AdminReportsCubit>()
-                    .markAsUnderReview(report.id);
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.check_circle, color: AppTheme.accentGreen),
-              title: const Text('Resolve Report'),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.read<AdminReportsCubit>().resolveReport(report.id);
-              },
-            ),
-            const Divider(),
-            if (report.isJobReport)
-              ListTile(
-                leading: const Icon(Icons.work),
-                title: Text('View Job #${report.targetId}'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  // TODO: Navigate to job details
-                },
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Text(
+              'Fetching job details...',
+              style: TextStyle(
+                color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
               ),
-            if (report.isUserReport)
-              ListTile(
-                leading: const Icon(Icons.person),
-                title: Text('View User #${report.targetId}'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  // TODO: Navigate to user details
-                },
-              ),
+            ),
           ],
         ),
       ),
     );
+
+    // Fetch job details to get recruiter ID
+    final jobDetails = await context.read<AdminReportsCubit>().getJobDetails(report.targetId);
+
+    // Close loading dialog
+    if (context.mounted) Navigator.pop(context);
+
+    if (jobDetails == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to fetch job details'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Get recruiter ID from job details
+    final recruiter = jobDetails['recruiter'] as Map<String, dynamic>?;
+    final recruiterId = recruiter?['id'] as int?;
+    final recruiterEmail = recruiter?['email'] as String? ?? 'Unknown';
+
+    if (recruiterId == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not find recruiter information'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Show confirmation dialog
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+          title: Text(
+            'Block Recruiter',
+            style: TextStyle(
+              color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to block $recruiterEmail?\n\n'
+            'This recruiter will not be able to access the platform. '
+            'The report will be marked as resolved.',
+            style: TextStyle(
+              color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.read<AdminReportsCubit>().blockRecruiterAndResolve(
+                  report.id,
+                  recruiterId,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.warningYellow,
+              ),
+              child: const Text('Block Recruiter'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _confirmDeleteJobAndBlockRecruiter(BuildContext context, Report report) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Show loading dialog while fetching job details
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Text(
+              'Fetching job details...',
+              style: TextStyle(
+                color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Fetch job details to get recruiter ID
+    final jobDetails = await context.read<AdminReportsCubit>().getJobDetails(report.targetId);
+
+    // Close loading dialog
+    if (context.mounted) Navigator.pop(context);
+
+    if (jobDetails == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to fetch job details'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Get recruiter ID from job details
+    final recruiter = jobDetails['recruiter'] as Map<String, dynamic>?;
+    final recruiterId = recruiter?['id'] as int?;
+    final recruiterEmail = recruiter?['email'] as String? ?? 'Unknown';
+    final jobTitle = jobDetails['title'] as String? ?? 'Unknown Job';
+
+    if (recruiterId == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not find recruiter information'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Show confirmation dialog
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+          title: Text(
+            'Delete Job & Block Recruiter',
+            style: TextStyle(
+              color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+            ),
+          ),
+          content: Text(
+            '⚠️ This will:\n\n'
+            '• Delete the job: "$jobTitle"\n'
+            '• Block the recruiter: $recruiterEmail\n\n'
+            'These actions cannot be undone. The report will be marked as resolved.',
+            style: TextStyle(
+              color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.read<AdminReportsCubit>().deleteJobAndBlockRecruiter(
+                  report.id,
+                  report.targetId,
+                  recruiterId,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.errorRed,
+              ),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }
 
@@ -968,7 +1314,7 @@ class _UserManagementCard extends StatelessWidget {
                 backgroundColor:
                     isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
                 child: Text(
-                  user.email[0].toUpperCase(),
+                  user.displayName[0].toUpperCase(),
                   style: TextStyle(
                     color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
                     fontWeight: FontWeight.w600,
@@ -981,7 +1327,7 @@ class _UserManagementCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user.email,
+                      user.displayName,
                       style: TextStyle(
                         color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
                         fontSize: 16,
@@ -989,7 +1335,7 @@ class _UserManagementCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Role: ${user.role}',
+                      'Role: ${user.role ?? 'Unknown'}',
                       style: TextStyle(
                         color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
                         fontSize: 12,
@@ -1010,7 +1356,7 @@ class _UserManagementCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  user.status,
+                  user.status ?? 'Unknown',
                   style: TextStyle(
                     color: user.isActive
                         ? AppTheme.accentGreen
@@ -1135,7 +1481,7 @@ class _ReportCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Reported by: ${report.reporter.email}',
+            'Reported by: ${report.reporter.displayName}',
             style: TextStyle(
                 color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
                 fontSize: 13),
