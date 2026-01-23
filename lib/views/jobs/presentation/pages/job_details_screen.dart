@@ -21,6 +21,7 @@ import '../../../chat/presentation/pages/chat_screen.dart';
 import '../../../reports/data/models/report.dart';
 import '../../../reports/presentation/widgets/create_report_dialog.dart';
 import '../../../reviews/presentation/widgets/user_rating_widget.dart';
+import '../../../reviews/presentation/widgets/create_review_dialog.dart';
 
 class JobDetailsScreen extends StatelessWidget {
   final bool isRecruiter;
@@ -809,7 +810,7 @@ class _JobDetailsViewState extends State<_JobDetailsView> {
                       ),
                     ),
                     Text(
-                      'Start working when you\'re ready.',
+                      'Mark as complete when the work is done.',
                       style: TextStyle(
                         color: Theme.of(context).brightness == Brightness.dark
                             ? AppTheme.textGrey
@@ -823,15 +824,22 @@ class _JobDetailsViewState extends State<_JobDetailsView> {
             ],
           ),
         ),
-        // Start Work button (prominent)
+        // Leave Review button (for testing - skip completion requirement)
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () => _openApplicationDetail(context, application),
-            icon: const Icon(Icons.play_arrow, size: 20),
-            label: const Text('Start Work'),
+            onPressed: () async {
+              await showCreateReviewDialog(
+                context: context,
+                jobApplicationId: application.id,
+                applicantName: recruiterName,
+              );
+              _refreshApplication();
+            },
+            icon: const Icon(Icons.star, size: 20),
+            label: const Text('Leave a Review for Recruiter'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentBlue,
+              backgroundColor: AppTheme.accentYellow,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -856,6 +864,21 @@ class _JobDetailsViewState extends State<_JobDetailsView> {
               ),
             ),
           ),
+        const SizedBox(height: 8),
+        // View Details button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _openApplicationDetail(context, application),
+            icon: const Icon(Icons.visibility, size: 18),
+            label: const Text('View Application Details'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.textGrey,
+              side: const BorderSide(color: AppTheme.textGrey),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
       ],
     );
   }

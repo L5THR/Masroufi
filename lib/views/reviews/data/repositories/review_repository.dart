@@ -169,6 +169,15 @@ class ReviewRepository {
           return 'Review not found.';
         case 409:
           return 'You have already reviewed this job.';
+        case 422:
+          if (data is Map && data.containsKey('message')) {
+            final message = data['message'] as String;
+            if (message.toLowerCase().contains('not completed')) {
+              return 'This job must be marked as COMPLETED before you can leave a review.';
+            }
+            return message;
+          }
+          return 'Cannot submit review. Job may not be completed yet.';
         case 500:
           String message = 'Server error. ';
           if (data is Map && data.containsKey('message')) {

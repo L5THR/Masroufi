@@ -23,6 +23,8 @@ import '../../../chat/logic/chat_cubit.dart';
 import '../../../chat/data/repositories/chat_repository.dart';
 import '../../../chat/presentation/widgets/conversations_list.dart';
 import '../../../reports/presentation/pages/my_reports_screen.dart';
+import '../../../reviews/presentation/widgets/user_rating_widget.dart';
+import '../../../reviews/data/repositories/review_repository.dart';
 
 class JobSeekerHomeScreen extends StatefulWidget {
   const JobSeekerHomeScreen({super.key});
@@ -751,8 +753,18 @@ class _JobSeekerHomeScreenState extends State<JobSeekerHomeScreen> {
                   fontSize: 14,
                 ),
               ),
+              // Rating widget
+              if (authState.isAuthenticated && userState is UserLoaded) ...[
+                const SizedBox(height: 12),
+                UserRatingWidget(
+                  userId: userState.user.id,
+                  size: 16,
+                  showCount: true,
+                ),
+              ],
               const SizedBox(height: 24),
-              _ProfileStats(),
+              if (authState.isAuthenticated && userState is UserLoaded)
+                _ProfileStats(userId: userState.user.id),
               const SizedBox(height: 24),
               if (authState.isAuthenticated)
                 _ProfileMenuItem(
@@ -1228,7 +1240,57 @@ class _TagChip extends StatelessWidget {
   }
 }
 
-class _ProfileStats extends StatelessWidget {
+class _ProfileStats extends StatefulWidget {
+  final int userId;
+
+  const _ProfileStats({required this.userId});
+
+  @override
+  State<_ProfileStats> createState() => _ProfileStatsState();
+}
+
+class _ProfileStatsState extends State<_ProfileStats> {
+  int _appliedCount = 0;
+  double _averageRating = 0.0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      // Fetch applied jobs count
+      final applicationCubit = context.read<ApplicationCubit>();
+      await applicationCubit.getMyApplications();
+
+      final appState = applicationCubit.state;
+      if (appState is ApplicationsLoaded) {
+        _appliedCount = appState.applications.length;
+      }
+
+      // Fetch rating summary
+      final reviewRepo = ReviewRepository();
+      final ratingSummary = await reviewRepo.getUserRatingSummary(widget.userId);
+      _averageRating = ratingSummary.averageRating;
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // If error, just show defaults
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1240,24 +1302,39 @@ class _ProfileStats extends StatelessWidget {
         color: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          const _StatItem(label: 'Applied', value: '-'),
-          Container(
-            width: 1,
-            height: 40,
-            color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
-          ),
-          const _StatItem(label: 'Saved', value: '-'),
-          Container(
-            width: 1,
-            height: 40,
-            color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
-          ),
-          const _StatItem(label: 'Rating', value: '-'),
-        ],
-      ),
+      child: _isLoading
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _StatItem(
+                  label: 'Applied',
+                  value: _appliedCount.toString(),
+                ),
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
+                ),
+                const _StatItem(label: 'Saved', value: '0'),
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: isDark ? AppTheme.tertiaryGrey : AppTheme.lightGrey,
+                ),
+                _StatItem(
+                  label: 'Rating',
+                  value: _averageRating > 0 ? _averageRating.toStringAsFixed(1) : '-',
+                  icon: _averageRating > 0 ? Icons.star : null,
+                  iconColor: AppTheme.accentYellow,
+                ),
+              ],
+            ),
     );
   }
 }
@@ -1265,8 +1342,15 @@ class _ProfileStats extends StatelessWidget {
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
+  final IconData? icon;
+  final Color? iconColor;
 
-  const _StatItem({required this.label, required this.value});
+  const _StatItem({
+    required this.label,
+    required this.value,
+    this.icon,
+    this.iconColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1274,13 +1358,26 @@ class _StatItem extends StatelessWidget {
 
     return Column(
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 20,
+                color: iconColor ?? (isDark ? AppTheme.textWhite : AppTheme.textBlack),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              value,
+              style: TextStyle(
+                color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(

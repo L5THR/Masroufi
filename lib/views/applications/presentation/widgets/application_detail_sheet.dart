@@ -237,93 +237,82 @@ class _JobSeekerApplicationDetailSheet extends StatelessWidget {
               const SizedBox(height: 20),
             ],
 
-            // ==================== ACCEPTED: Ready to Start Work ====================
+            // ==================== ACCEPTED: Mark Complete ====================
             if (application.status == ApplicationStatus.ACCEPTED) ...[
               _InfoBanner(
                 icon: Icons.celebration,
                 color: AppTheme.successGreen,
-                title: 'Congratulations! You\'re Accepted',
-                message: 'The recruiter accepted your application. Start working when you\'re ready.',
+                title: 'You\'re Accepted!',
+                message: 'Mark the job as completed when you finish the work.',
               ),
               const SizedBox(height: 16),
-              Text(
-                'Ready to Begin?',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tap the button below to notify the recruiter that you\'ve started working on this job.',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 16),
-              CompletionActions(
-                applicationId: application.id,
-                status: application.status,
-                isJobSeeker: true,
-                onActionCompleted: () {
-                  Navigator.pop(context);
-                  onRefresh();
+              BlocConsumer<ApplicationCubit, ApplicationState>(
+                listener: (context, state) {
+                  if (state is ApplicationStatusUpdated) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Status updated to ${state.application.status.displayName}'),
+                        backgroundColor: AppTheme.successGreen,
+                      ),
+                    );
+                    Navigator.pop(context);
+                    onRefresh();
+                  } else if (state is ApplicationStatusUpdateError) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.message),
+                        backgroundColor: AppTheme.errorRed,
+                      ),
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  final isUpdating = state is ApplicationStatusUpdating;
+
+                  return SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isUpdating
+                          ? null
+                          : () => _showConfirmDialog(
+                                context,
+                                title: 'Mark as Complete',
+                                message: 'Have you finished all the work for this job?',
+                                confirmLabel: 'Mark Complete',
+                                onConfirm: () {
+                                  context.read<ApplicationCubit>().updateApplicationStatus(
+                                        applicationId: application.id,
+                                        status: ApplicationStatus.COMPLETED,
+                                      );
+                                },
+                              ),
+                      icon: isUpdating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_circle, size: 20),
+                      label: const Text('Mark Job as Complete'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 24),
             ],
 
-            // ==================== IN_PROGRESS: Working on Job ====================
-            if (application.status == ApplicationStatus.IN_PROGRESS) ...[
-              _InfoBanner(
-                icon: Icons.engineering,
-                color: AppTheme.accentBlue,
-                title: 'Work In Progress',
-                message: 'You\'re currently working on this job. Mark it complete when finished.',
-              ),
+            // ==================== HIRED/IN_PROGRESS: Can Mark Complete ====================
+            if (application.status == ApplicationStatus.HIRED ||
+                application.status == ApplicationStatus.IN_PROGRESS) ...[
               const SizedBox(height: 16),
-              Text(
-                'Finished the Work?',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'When you\'ve completed all the work, tap below to request completion. The recruiter will need to confirm.',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 16),
-              CompletionActions(
-                applicationId: application.id,
-                status: application.status,
-                isJobSeeker: true,
-                onActionCompleted: () {
-                  Navigator.pop(context);
-                  onRefresh();
-                },
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            // ==================== PENDING_COMPLETION: Awaiting Confirmation ====================
-            if (application.status == ApplicationStatus.PENDING_COMPLETION) ...[
-              Text(
-                'Completion Confirmation',
-                style: TextStyle(
-                  color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
               CompletionActions(
                 applicationId: application.id,
                 status: application.status,
@@ -438,6 +427,57 @@ class _JobSeekerApplicationDetailSheet extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showConfirmDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required VoidCallback onConfirm,
+    bool isDestructive = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.secondaryBlack : AppTheme.secondaryWhite,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isDark ? AppTheme.textWhite : AppTheme.textBlack,
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDark ? AppTheme.textGrey : AppTheme.textDarkGrey,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              onConfirm();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDestructive ? AppTheme.errorRed : AppTheme.accentGreen,
+            ),
+            child: Text(confirmLabel),
+          ),
+        ],
       ),
     );
   }
@@ -821,13 +861,50 @@ class _RecruiterApplicationDetailSheet extends StatelessWidget {
                   const SizedBox(height: 24),
                 ],
 
-                // ==================== ACCEPTED: Waiting for Job Seeker ====================
+                // ==================== ACCEPTED: Mark Complete + Review Option ====================
                 if (application.status == ApplicationStatus.ACCEPTED) ...[
                   _InfoBanner(
-                    icon: Icons.hourglass_empty,
-                    color: AppTheme.accentBlue,
-                    title: 'Waiting for Job Seeker',
-                    message: 'You accepted this application. Waiting for the job seeker to start working.',
+                    icon: Icons.check_circle,
+                    color: AppTheme.successGreen,
+                    title: 'Applicant Accepted',
+                    message: 'Mark the job as completed to enable reviews.',
+                  ),
+                  const SizedBox(height: 16),
+                  // Mark as Complete button (Required for reviews)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isUpdating
+                          ? null
+                          : () => _showConfirmDialog(
+                                context,
+                                title: 'Mark as Complete',
+                                message: 'Mark this job as completed? This will allow both parties to leave reviews.',
+                                confirmLabel: 'Mark Complete',
+                                onConfirm: () {
+                                  context.read<ApplicationCubit>().updateApplicationStatus(
+                                        applicationId: application.id,
+                                        status: ApplicationStatus.COMPLETED,
+                                      );
+                                },
+                              ),
+                      icon: isUpdating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_circle, size: 20),
+                      label: const Text('Mark Job as Complete'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
                 ],
